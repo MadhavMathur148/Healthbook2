@@ -1,0 +1,14 @@
+{
+  "appId": "io.healthbook.app",
+  "appName": "Healthbook",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F2F2F7"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_healthbook",
+      "iconColor": "#34A853"
+    }
+  }
+}
