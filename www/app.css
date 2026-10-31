@@ -39,8 +39,6 @@ button{font-family:inherit;color:inherit}
 .date{font:600 13px var(--sys);text-transform:uppercase;letter-spacing:.02em;color:var(--muted)}
 .title-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 h1{font:700 34px/1.1 var(--sys);letter-spacing:-.025em;margin:0}
-.iconbtn{border:0;background:var(--card);width:38px;height:38px;border-radius:50%;display:grid;place-content:center;cursor:pointer;color:var(--blue)}
-.iconbtn svg{width:20px;height:20px}
 .group{display:flex;flex-direction:column;gap:8px}
 .gh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px}
 .gh h2{font:700 22px var(--sys);letter-spacing:-.02em;margin:0}
@@ -185,15 +183,9 @@ textarea.tin{min-height:70px;resize:vertical;font-size:15px}
 .inp{display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:10px;padding:0 12px;min-width:0}
 .inp input{flex:1;min-width:0;border:0;background:transparent;font:600 19px var(--round);color:var(--ink);padding:11px 0;outline:none}
 .inp span{font:500 14px var(--sys);color:var(--muted);white-space:nowrap}
-.inrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
 .drops{display:flex;flex-wrap:wrap;gap:6px}
 .drops button{width:30px;height:38px;border:0;background:none;padding:0;cursor:pointer}
 .drops svg{width:100%;height:100%;display:block}
-.badge{font:600 12px var(--sys);padding:3px 9px;border-radius:999px;white-space:nowrap}
-.badge.ok{background:color-mix(in srgb,var(--green) 16%,transparent)}
-.badge.warn{background:color-mix(in srgb,var(--yellow) 24%,transparent)}
-.badge.bad{background:color-mix(in srgb,var(--red) 16%,transparent)}
-.badge.none{background:var(--fill);color:var(--muted)}
 
 /* charts */
 .chart{width:100%;height:auto;display:block;overflow:visible}
@@ -204,8 +196,6 @@ textarea.tin{min-height:70px;resize:vertical;font-size:15px}
 .chart .band{opacity:.12}
 .tstat{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .delta{font:600 13px var(--sys);color:var(--muted)}
-.legendrow{display:flex;gap:14px;font:500 13px var(--sys);color:var(--muted);flex-wrap:wrap}
-.legendrow i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .empty{font:400 14px var(--sys);color:var(--muted);text-align:center;padding:14px 0}
 .heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .heat i{width:14px;height:14px;border-radius:3px;background:var(--fill)}
