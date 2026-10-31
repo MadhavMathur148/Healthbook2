@@ -1,4 +1,4 @@
-/* Healthbook accounts and sync (Supabase). Inactive when config.js has no URL or key. */
+/* Healthbook accounts and cloud sync. Inactive when config.js has no URL or key. */
 "use strict";
 const CLOUD = (()=>{
   const c = window.HB_CONFIG || {};
@@ -13,7 +13,14 @@ async function cloudInit(){
   CLOUD.auth.onAuthStateChange((ev, session)=>{ cloudUser = session ? session.user : null; });
   if(cloudUser) await cloudPull(true);
 }
-function msgOf(e){ const m = String((e && (e.message || e.error_description)) || e || "Something went wrong"); if(/failed to fetch|network/i.test(m)) return "No internet connection. Your changes are saved on this phone and will sync later."; if(/invalid login/i.test(m)) return "That email and password don't match an account."; if(/already registered|already been registered/i.test(m)) return "There's already an account with that email. Sign in instead."; if(/password should be at least/i.test(m)) return "Use a password of at least 8 characters."; if(/rate limit/i.test(m)) return "Too many attempts. Wait a minute and try again."; return m; }
+function msgOf(e){ const m = String((e && (e.message || e.error_description)) || e || "Something went wrong"); if(/failed to fetch|network/i.test(m)) return "No internet connection. Your changes are saved on this phone and will sync later."; if(/invalid login/i.test(m)) return "That email and password don't match an account."; if(/already registered|already been registered/i.test(m)) return "There's already an account with that email. Sign in instead."; if(/password should be at least/i.test(m)) return "Passwords need at least 8 characters."; if(/rate limit/i.test(m)) return "Too many attempts. Wait a minute and try again.";
+  if(/email not confirmed|confirm/i.test(m)) return "Check your email and confirm your address first.";
+  if(/not found|no rows/i.test(m)) return "We couldn't find that. Try signing in again.";
+  if(/expired|jwt|token|session/i.test(m)) return "Your session timed out. Sign in again to keep syncing.";
+  /* Anything unrecognised is an internal message. Log it for debugging, but never
+     put raw server wording in front of the person. */
+  console.warn("cloud error", m);
+  return "Something went wrong. Your data is safe on this phone — try again in a moment."; }
 
 async function cloudSignUp(email, password){
   const {data, error} = await CLOUD.auth.signUp({email, password});
@@ -168,7 +175,7 @@ function openAuth(mode, after){
   });
 }
 function confirmDeleteAccount(){
-  openSheet(`<span class="grab"></span><h3 class="big3">Delete your account?</h3><p class="sub">This permanently deletes your profile, synced data and monthly summaries from Healthbook's database. It can't be undone.</p>
+  openSheet(`<span class="grab"></span><h3 class="big3">Delete your account?</h3><p class="sub">This permanently deletes your profile, synced data and monthly summaries from the cloud. It can't be undone.</p>
     <button class="btn danger" data-s="keep">Delete account, keep data on this phone</button><button class="btn danger" data-s="wipe">Delete account and all data</button><button class="btn sec" data-s="cancel">Cancel</button>`, async b=>{
     const s2 = b.dataset.s; if(s2==="cancel"){ closeSheet(); return; }
     b.disabled = true; b.textContent = "Deleting…";

@@ -1044,7 +1044,7 @@ function openImport(after){
   });
   const ta = sheet.querySelector("#rules-text"), found = sheet.querySelector("#found"), go = sheet.querySelector('[data-s="go"]');
   const update = ()=>{ const txt = ta.value.trim(); parsed = txt ? (txt.startsWith("{") ? parsePackJSON(txt) : parseRules(txt)) : null;
-    if(!parsed){ found.innerHTML = txt ? `<span style="--c:var(--red)">That JSON isn't a Healthbook rules file</span>` : ""; go.disabled = true; return; }
+    if(!parsed){ found.innerHTML = txt ? `<span style="--c:var(--red)">That file isn't a Healthbook rules file</span>` : ""; go.disabled = true; return; }
     const c = packCounts(parsed), total = Object.values(c).reduce((a,b)=>a+b,0);
     found.innerHTML = [["daily","dailies","var(--green)"],["habit","habits","var(--blue)"],["todo","to-dos","var(--red)"],["reward","rewards","var(--yellow)"],["tracker","trackers","var(--blue)"]].filter(([k])=>c[k]).map(([k,n,col])=>`<span style="--c:${col}">${c[k]} ${c[k]===1?n.replace(/ies$/,"y").replace(/s$/,""):n}</span>`).join("") + (parsed.warnings.length ? `<p class="hint" style="width:100%;margin-top:4px">${parsed.warnings.length} note${parsed.warnings.length>1?"s":""}: ${esc(parsed.warnings.slice(0,3).join("; "))}${parsed.warnings.length>3?"…":""}</p>` : "") + (total ? "" : `<p class="hint">Nothing found yet. Start lines with "- " under a heading like Dailies:</p>`);
     go.disabled = !total; };
