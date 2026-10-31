@@ -411,25 +411,71 @@ function vLog(){
 function rangeKeys(n){ const out = []; for(let i=n-1;i>=0;i--) out.push(addDays(TODAY(),-i)); return out; }
 function avgOf(keys, id){ const v = keys.map(k=>logVal(k,id)).filter(x=>x!=null && typeof x!=="object"); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; }
 function lineChart(keys, series, o){
-  const W = 330, H = 150, L = 30, R = 6, T = 8, B = 20, n = keys.length, xs = i=>L+(n===1?(W-L-R)/2:(W-L-R)*i/(n-1));
+  const W = 330, H = 158, L = 32, R = 8, T = 10, B = 26, n = keys.length, xs = i=>L+(n===1?(W-L-R)/2:(W-L-R)*i/(n-1));
   const lo = o.min, hi = o.max, ys = v=>T+(H-T-B)*(1-(clamp(v,lo,hi)-lo)/(hi-lo||1));
+  const bw = Math.max(2,(W-L-R)/Math.max(n,1)*.62);
   let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||"chart")}">`;
-  if(o.band) s += `<rect class="band" fill="${o.bandC}" x="${L}" y="${ys(o.band[1])}" width="${W-L-R}" height="${Math.max(0,ys(o.band[0])-ys(o.band[1]))}"/>`;
-  for(const v of o.ticks) s += `<line class="gl" x1="${L}" x2="${W-R}" y1="${ys(v)}" y2="${ys(v)}"/><text class="yl" x="${L-6}" y="${ys(v)+3}" text-anchor="end">${o.tickFmt?o.tickFmt(v):v}</text>`;
-  if(o.goal!=null) s += `<line class="tl" x1="${L}" x2="${W-R}" y1="${ys(o.goal)}" y2="${ys(o.goal)}"/>`;
+  /* weekends shaded, so a Saturday dip is visible at a glance */
+  if(n<=45) keys.forEach((k,i)=>{ const d = dowOf(k); if(d!==0 && d!==6) return;
+    s += `<rect class="wknd" x="${(xs(i)-bw*.9).toFixed(1)}" y="${T}" width="${(bw*1.8).toFixed(1)}" height="${H-T-B}"/>`; });
+  /* Labels are collected and drawn last, so bars and lines never cover them. */
+  let labels = "";
+  if(o.band){ s += `<rect class="band" fill="${o.bandC}" x="${L}" y="${ys(o.band[1])}" width="${W-L-R}" height="${Math.max(0,ys(o.band[0])-ys(o.band[1]))}"/>`;
+    labels += `<text class="bandl" x="${W-R-2}" y="${ys(o.band[1])-3}" text-anchor="end">goal</text>`; }
+  for(const v of o.ticks){ s += `<line class="gl" x1="${L}" x2="${W-R}" y1="${ys(v)}" y2="${ys(v)}"/>`;
+    labels += `<text class="yl" x="${L-6}" y="${ys(v)+3}" text-anchor="end">${o.tickFmt?o.tickFmt(v):v}</text>`; }
+  if(o.goal!=null){ s += `<line class="tl" x1="${L}" x2="${W-R}" y1="${ys(o.goal)}" y2="${ys(o.goal)}"/>`;
+    labels += `<text class="bandl bg" x="${W-R-2}" y="${ys(o.goal)-3}" text-anchor="end">goal ${o.tickFmt?o.tickFmt(o.goal):o.goal}</text>`; }
+  /* your own usual, as a soft dashed reference */
+  if(o.ref!=null && o.ref>lo && o.ref<hi){ s += `<line class="refl" x1="${L}" x2="${W-R}" y1="${ys(o.ref)}" y2="${ys(o.ref)}"/>`;
+    labels += `<text class="bandl bg" x="${L+2}" y="${ys(o.ref)-3}">usual</text>`; }
   const idx = n<=1 ? [0] : [0, Math.floor((n-1)/2), n-1];
-  for(const i of idx) s += `<text class="xl" x="${xs(i)}" y="${H-4}" text-anchor="${i===0&&n>1?"start":i===n-1&&n>1?"end":"middle"}">${fmtD(keys[i])}</text>`;
+  for(const i of idx) labels += `<text class="xl" x="${xs(i)}" y="${H-10}" text-anchor="${i===0&&n>1?"start":i===n-1&&n>1?"end":"middle"}">${fmtD(keys[i])}</text>`;
   for(const se of series){
     s += `<g class="gl-svg" style="color:${se.c}">`;
-    if(o.bars){ const bw = Math.max(2,(W-L-R)/Math.max(n,1)*.62);
-      keys.forEach((k,i)=>{ const v = se.get(k); if(v==null) return; const y = ys(v); s += `<rect x="${xs(i)-bw/2}" y="${y}" width="${bw}" height="${Math.max(1,ys(lo)-y)}" rx="${Math.min(3,bw/2)}" fill="${se.c}"/>`; }); s += `</g>`; continue; }
+    if(o.bars){
+      keys.forEach((k,i)=>{ const v = se.get(k); if(v==null) return; const y = ys(v);
+        const met = o.goal!=null ? v>=o.goal : o.band ? (v>=o.band[0] && v<=o.band[1]) : true;
+        s += `<rect x="${xs(i)-bw/2}" y="${y}" width="${bw}" height="${Math.max(1,ys(lo)-y)}" rx="${Math.min(3,bw/2)}" fill="${se.c}" opacity="${met?1:.42}"><title>${fmtD(keys[i])}: ${o.tickFmt?o.tickFmt(v):v}</title></rect>`; });
+      s += `</g>`; continue; }
     let d = "", pen = false;
     keys.forEach((k,i)=>{ const v = se.get(k); if(v==null){ if(!o.connect) pen = false; return; } d += (pen?"L":"M")+xs(i).toFixed(1)+","+ys(v).toFixed(1); pen = true; });
     s += `<path d="${d}" fill="none" stroke="${se.c}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-    if(n<=45) keys.forEach((k,i)=>{ const v = se.get(k); if(v!=null) s += `<circle cx="${xs(i)}" cy="${ys(v)}" r="${n<=8?3.5:2.3}" fill="${se.c}"/>`; });
+    if(n<=45) keys.forEach((k,i)=>{ const v = se.get(k); if(v!=null) s += `<circle cx="${xs(i)}" cy="${ys(v)}" r="${n<=8?3.5:2.3}" fill="${se.c}"><title>${fmtD(keys[i])}: ${o.tickFmt?o.tickFmt(v):v}</title></circle>`; });
+    /* last point called out, since "where am I now" is the usual question */
+    let li = -1; keys.forEach((k,i)=>{ if(se.get(k)!=null) li = i; });
+    if(li>=0 && !o.bars){ const v = se.get(keys[li]);
+      s += `<circle cx="${xs(li)}" cy="${ys(v)}" r="${n<=8?5:4}" fill="${se.c}" stroke="var(--card)" stroke-width="2"/>`; }
     s += `</g>`;
   }
-  return s+`</svg>`;
+  /* today's tick on the x-axis */
+  const ti = keys.indexOf(TODAY());
+  if(ti>=0 && n>1) labels += `<text class="xl td" x="${xs(ti)}" y="${H-1}" text-anchor="${ti===n-1?"end":"middle"}">today</text>`;
+  return s+labels+`</svg>`;
+}
+/* One line of plain English under a chart, so the picture doesn't have to be decoded. */
+function chartCaption(t, keys){
+  const vals = keys.map(k=>logVal(k,t.id)).filter(v=>typeof v==="number");
+  if(vals.length < 3) return "";
+  const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const goal = t.kind==="count" ? t.target : (t.better==="up" ? t.min : null);
+  const unit = t.kind==="scale" ? "/10" : t.unit ? " "+t.unit : "";
+  const show = v=>(Math.abs(v)>=1000?Math.round(v).toLocaleString("en-IN"):Math.round(v*10)/10)+unit;
+  if(goal!=null){ const hit = vals.filter(v=>v>=goal).length;
+    return `You hit ${show(goal)} on ${hit} of ${vals.length} logged days. Faded bars are the days you didn't.`; }
+  if(t.min!=null && t.max!=null){ const inb = vals.filter(v=>v>=t.min && v<=t.max).length;
+    return `Inside your ${show(t.min)}–${show(t.max)} range on ${inb} of ${vals.length} days — that's the shaded band.`; }
+  const half = Math.floor(vals.length/2), a = vals.slice(0,half), b = vals.slice(half);
+  if(a.length>=2 && b.length>=2){ const d = b.reduce((x,y)=>x+y,0)/b.length - a.reduce((x,y)=>x+y,0)/a.length;
+    const unitAbs = Math.abs(d);
+    if(unitAbs > Math.abs(avg)*0.08) return `Trending ${d>0?"up":"down"}: around ${show(unitAbs)} ${d>0?"higher":"lower"} lately than earlier in this range.`; }
+  /* Nothing notable in the shape, so say something the big number doesn't already. */
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  let li = -1, hiI = -1;
+  keys.forEach((k,i)=>{ const v = logVal(k,t.id); if(typeof v!=="number") return;
+    if(li<0 || v<logVal(keys[li],t.id)) li=i; if(hiI<0 || v>logVal(keys[hiI],t.id)) hiI=i; });
+  const best = t.better==="down" ? li : hiI;
+  return `Mostly between ${show(lo)} and ${show(hi)}. Your best day was ${fmtD(keys[best])}.`;
 }
 function niceRange(vals, pad){ let mn = Math.min(...vals), mx = Math.max(...vals); if(mn===mx){ mn -= pad; mx += pad; } const r = mx-mn; mn = Math.floor(mn - r*.15); mx = Math.ceil(mx + r*.15); return [mn, mx, [mn, Math.round((mn+mx)/2), mx]]; }
 function dayRate(k){ const due = dueToday(k); return due.length ? due.filter(t=>isDone(t,k)).length/due.length : null; }
@@ -440,7 +486,10 @@ function heatmap(){
 }
 function deltaTxt(cur, prev, unit, goodUp){
   if(cur==null || prev==null) return "";
-  const d = cur-prev; if(Math.abs(d)<0.05) return `<span class="delta">Same as the previous ${trendRange} days</span>`;
+  const d = cur-prev;
+  /* A change smaller than 3% of the value isn't a trend, it's noise — don't
+     dress it up with an arrow. */
+  if(Math.abs(d) < Math.max(0.05, Math.abs(prev)*0.03)) return `<span class="delta">About the same as the previous ${trendRange} days</span>`;
   const good = goodUp==null ? null : (d>0)===goodUp;
   return `<span class="delta ${good==null?"":good?"ok":"bad"}">${d>0?"▲":"▼"} ${Math.abs(d).toLocaleString("en-IN",{maximumFractionDigits:1})}${unit} vs previous ${trendRange} days</span>`;
 }
@@ -462,6 +511,8 @@ function trackerTrend(t, keys, prev){
   else { const [mn,mx,tk] = t.min!=null && t.better==="up" ? [0, Math.max(t.min*1.4,...vals), null] : niceRange(vals, 1); const big = mx>=2000, rnd = v=>big?Math.round(v/1000)*1000:Math.round(v), top = big?Math.ceil(mx/1000)*1000:mx; o = {min:mn,max:top,ticks:tk||[0,rnd(top/2),top],goal:t.min,bars:t.better==="up",connect:true,tickFmt:v=>v>=1000?(v/1000).toLocaleString("en-IN",{maximumFractionDigits:1})+"k":v}; }
   o.label = t.name;
   h += lineChart(keys,[{c,get:k=>{const v = logVal(k,t.id); return typeof v==="number"?v:null;}}],o);
+  const cap = chartCaption(t, keys);
+  if(cap) h += `<p class="ccap">${esc(cap)}</p>`;
   return h+`</div>`;
 }
 function vTrends(){
@@ -472,7 +523,9 @@ function vTrends(){
   const prates = prev.map(dayRate).filter(v=>v!=null), pavg = prates.length ? Math.round(prates.reduce((a,b)=>a+b,0)/prates.length*100) : null;
   h += `<div class="card field" style="--c:var(--green)"><div class="cap" style="padding:0">Dailies done</div><div class="tstat"><span class="big" style="color:var(--green)">${avg==null?"–":avg+"%"}<small> average</small></span>${deltaTxt(avg,pavg,"%",true)}</div>`;
   h += lineChart(keys,[{c:"var(--green)",get:k=>{const r = dayRate(k); return r==null?null:Math.round(r*100);}}],{min:0,max:100,ticks:[0,50,100],goal:80,bars:true,label:"Share of dailies done each day",tickFmt:v=>v+"%"});
-  h += `<div class="cap" style="padding:0;margin-top:6px">Last 17 weeks</div>${heatmap()}</div>`;
+  const full = keys.filter(k=>k!==TODAY() && dayRate(k)===1).length;
+  h += `<p class="ccap">Each bar is one day. ${full} full day${full===1?"":"s"} with everything ticked. Faded bars fell below your 80% line.</p>`;
+  h += `<div class="cap" style="padding:0;margin-top:10px">Last 17 weeks</div>${heatmap()}<p class="ccap">Darker squares are days you got more done. Left is oldest, bottom-right is today.</p></div>`;
   const xpk = keys.map(k=>{ const x = S.hist[k] && S.hist[k].x; return x ? Object.values(x).reduce((a,b)=>a+b,0) : 0; }), xps = xpk.reduce((a,b)=>a+b,0);
   h += `<div class="tiles"><div class="tile" style="--c:var(--blue)"><span class="tn">XP earned</span><span class="tv">${xps.toLocaleString("en-IN")}</span><span class="ts">In this range.</span></div><div class="tile" style="--c:var(--red)"><span class="tn">Best streak now</span><span class="tv">${Math.max(0,...dailies().map(t=>streakOf(t)))}<small> days</small></span><span class="ts">${esc((dailies().slice().sort((a,b)=>streakOf(b)-streakOf(a))[0]||{}).title||"")}</span></div></div>`;
   for(const t of S.trackers) h += trackerTrend(t, keys, prev);
@@ -602,47 +655,72 @@ function editTask(id, type){
   const t = id ? S.tasks.find(x=>x.id===id) : null; type = t ? t.type : type;
   const f = t ? JSON.parse(JSON.stringify(t)) : {type, title:"", notes:"", cat:"care", diff:1, days:[0,1,2,3,4,5,6], block:liveBlock().id, remind:null, checklist:[], auto:null, kind:"good", target:null, period:"week", due:null, star:false};
   const nm = {daily:"Daily",habit:"Habit",todo:"To-do"}[type];
+  const EX = {daily:["Drink water","Walk 20 minutes","Read before bed","Stretch","Take vitamins"],
+              habit:["Glass of water","Push-ups","Snack","Cigarette","Flight of stairs"],
+              todo:["Book dentist","Buy groceries","Call mum","Renew gym pass"]};
   const draw = ()=>{
     let h = shead(t?`Edit ${nm}`:`New ${nm}`, "Cancel", t?"Done":"Add") + `<div class="form">`;
-    h += `<div class="fld"><label for="f-title">Title</label><input class="tin" id="f-title" value="${esc(f.title)}" placeholder="${type==="habit"?"e.g. Glass of water":"e.g. Stretch for 10 minutes"}" maxlength="120"></div>`;
-    h += `<div class="fld"><label for="f-notes">Notes</label><textarea class="tin" id="f-notes" placeholder="Optional">${esc(f.notes)}</textarea></div>`;
-    h += `<div class="fld"><span class="lab">Category</span>${segHTML("cat", CAT_ORDER.map(c=>[c,CATS[c].name.replace(" & Care",""),CATS[c].c]), f.cat, "cats")}</div>`;
-    h += `<div class="fld"><span class="lab">Difficulty · XP</span>${segHTML("diff", [1,2,3].map(d=>[d, `${DIFF[d]} · ${(type==="daily"?XP_DAILY:type==="habit"?XP_HABIT:XP_TODO)[d]}`]), f.diff)}</div>`;
+    /* --- the only thing you must fill in --- */
+    h += `<div class="fld big"><label for="f-title">What is it?</label><input class="tin xl" id="f-title" value="${esc(f.title)}" placeholder="${type==="habit"?"Glass of water":type==="todo"?"Book dentist":"Drink water"}" maxlength="120" autocomplete="off"></div>`;
+    if(!t && !f.title) h += `<div class="chips">${EX[type].map(x=>`<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+    h += `<div class="fld"><span class="lab">What kind of thing?</span>${segHTML("cat", CAT_ORDER.map(c=>[c,CATS[c].name.replace(" & Care",""),CATS[c].c]), f.cat, "cats")}</div>`;
+
     if(type==="daily"){
-      h += `<div class="fld"><span class="lab">Repeats on</span><div class="days">${DOW.map((d,i)=>`<button type="button" data-dow="${i}" aria-pressed="${f.days.includes(i)}" aria-label="${DOW_LONG[i]}">${d}</button>`).join("")}</div></div>`;
-      h += `<div class="fld"><span class="lab">Time of day</span>${segHTML("block", BLOCKS.map(b=>[b.id,b.name.replace("Wind-down","Wind")]), f.block)}</div>`;
-      h += `<div class="fld"><label for="f-remind">Reminder</label><div class="two"><input class="tin" type="time" id="f-remind" value="${f.remind||""}"><button type="button" class="btn sec" data-clearrem="1">No reminder</button></div></div>`;
-      const a = (f.auto&&f.auto[0])||null;
-      h += `<div class="fld"><label for="f-auto">Tick automatically from a tracker</label><div class="two"><select class="tin" id="f-auto"><option value="">Off</option>${S.trackers.filter(x=>x.kind!=="bp").map(x=>`<option value="${x.id}" ${a&&a.t===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select><select class="tin" id="f-autoop"><option value="set" ${a&&a.op==="set"?"selected":""}>is logged</option><option value="gte" ${a&&a.op==="gte"?"selected":""}>at least</option><option value="lte" ${a&&a.op==="lte"?"selected":""}>at most</option></select></div><input class="tin" id="f-autov" type="number" inputmode="decimal" placeholder="Value" value="${a&&a.v!=null?a.v:""}" ${a&&a.op!=="set"?"":"hidden"}>${f.auto&&f.auto.length>1?`<p class="hint">Plus ${f.auto.length-1} more condition${f.auto.length>2?"s":""} (kept).</p>`:""}</div>`;
+      h += `<div class="fld"><span class="lab">When in the day?</span>${segHTML("block", BLOCKS.map(b=>[b.id,b.name.replace("Wind-down","Wind")]), f.block)}</div>`;
+      const everyDay = f.days.length===7;
+      h += `<div class="fld"><span class="lab">Which days?</span><div class="seg" data-group="freq"><button type="button" data-freq="all" aria-pressed="${everyDay}">Every day</button><button type="button" data-freq="some" aria-pressed="${!everyDay}">Only some days</button></div>`;
+      h += `<div class="days" ${everyDay?"hidden":""}>${DOW.map((d,i)=>`<button type="button" data-dow="${i}" aria-pressed="${f.days.includes(i)}" aria-label="${DOW_LONG[i]}">${d}</button>`).join("")}</div></div>`;
+      h += `<div class="fld"><span class="lab">Remind me</span><div class="two"><input class="tin" type="time" id="f-remind" value="${f.remind||""}"><button type="button" class="btn sec" data-clearrem="1">${f.remind?"Turn off":"No reminder"}</button></div></div>`;
     }
     if(type==="habit"){
-      h += `<div class="fld"><span class="lab">Type</span>${segHTML("kind", [["good","Good · +"],["bad","Slip · −"],["both","Both"]], f.kind)}</div>`;
-      h += `<div class="two"><div class="fld"><label for="f-target">Goal (optional)</label><input class="tin" id="f-target" type="number" inputmode="numeric" min="1" value="${f.target||""}" placeholder="e.g. 3"></div><div class="fld"><span class="lab">Per</span>${segHTML("period", [["day","Day"],["week","Week"]], f.period)}</div></div>`;
-      h += `<p class="hint">Slips never cost XP. They're there so you can see the pattern.</p>`;
+      h += `<div class="fld"><span class="lab">Is this a good thing or a slip?</span>${segHTML("kind", [["good","Good"],["bad","Slip"],["both","Both"]], f.kind)}</div>`;
+      h += `<p class="hint">Slips never cost you XP. They're just there so you can see the pattern.</p>`;
     }
     if(type==="todo"){
-      h += `<div class="two"><div class="fld"><label for="f-due">Due date</label><input class="tin" type="date" id="f-due" value="${f.due||""}"></div><label class="switch" style="align-self:end;padding-bottom:10px"><span>Start here</span><input type="checkbox" id="f-star" ${f.star?"checked":""}></label></div>`;
+      h += `<div class="fld"><label for="f-due">Finish it by</label><input class="tin" type="date" id="f-due" value="${f.due||""}"></div>`;
     }
-    if(type!=="habit"){
-      h += `<div class="fld"><span class="lab">Checklist</span><div class="cl">${f.checklist.map((c,i)=>`<div class="clrow"><input class="tin" data-clt="${i}" value="${esc(c.text)}"><button type="button" class="del" data-cldel="${i}" aria-label="Remove item">✕</button></div>`).join("")}<button type="button" class="btn sec" data-cladd="1">Add item</button></div></div>`;
+
+    /* --- everything else is tucked away --- */
+    h += `<button type="button" class="more" data-more="1" aria-expanded="${more}">${more?"Fewer options":"More options"}</button>`;
+    if(more){
+      h += `<div class="adv">`;
+      h += `<div class="fld"><span class="lab">How much effort?</span>${segHTML("diff", [1,2,3].map(d=>[d, `${DIFF[d]} · ${(type==="daily"?XP_DAILY:type==="habit"?XP_HABIT:XP_TODO)[d]} XP`]), f.diff)}</div>`;
+      h += `<div class="fld"><label for="f-notes">Note to self</label><textarea class="tin" id="f-notes" placeholder="Optional">${esc(f.notes)}</textarea></div>`;
+      if(type==="habit")
+        h += `<div class="two"><div class="fld"><label for="f-target">Aim for</label><input class="tin" id="f-target" type="number" inputmode="numeric" min="1" value="${f.target||""}" placeholder="e.g. 3"></div><div class="fld"><span class="lab">Per</span>${segHTML("period", [["day","Day"],["week","Week"]], f.period)}</div></div>`;
+      if(type==="todo")
+        h += `<label class="switch"><span>Pin to the top of Today</span><input type="checkbox" id="f-star" ${f.star?"checked":""}></label>`;
+      if(type==="daily"){
+        const a = (f.auto&&f.auto[0])||null;
+        h += `<div class="fld"><span class="lab">Tick itself when…</span><div class="two"><select class="tin" id="f-auto"><option value="">Never — I'll tick it</option>${S.trackers.filter(x=>x.kind!=="bp").map(x=>`<option value="${x.id}" ${a&&a.t===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select><select class="tin" id="f-autoop"><option value="set" ${a&&a.op==="set"?"selected":""}>is logged</option><option value="gte" ${a&&a.op==="gte"?"selected":""}>reaches</option><option value="lte" ${a&&a.op==="lte"?"selected":""}>stays under</option></select></div><input class="tin" id="f-autov" type="number" inputmode="decimal" placeholder="Number" value="${a&&a.v!=null?a.v:""}" ${a&&a.op!=="set"?"":"hidden"}><p class="hint">Example: tick "Drink water" by itself once water reaches 8.</p>${f.auto&&f.auto.length>1?`<p class="hint">Plus ${f.auto.length-1} more condition${f.auto.length>2?"s":""} (kept).</p>`:""}</div>`;
+      }
+      if(type!=="habit")
+        h += `<div class="fld"><span class="lab">Steps (optional)</span><div class="cl">${f.checklist.map((c,i)=>`<div class="clrow"><input class="tin" data-clt="${i}" value="${esc(c.text)}" placeholder="Step ${i+1}"><button type="button" class="del" data-cldel="${i}" aria-label="Remove step">✕</button></div>`).join("")}<button type="button" class="btn sec" data-cladd="1">Add a step</button></div></div>`;
+      if(t) h += `<div class="btns"><button type="button" class="btn sec" data-move="-1">Move up</button><button type="button" class="btn sec" data-move="1">Move down</button></div>`;
+      h += `</div>`;
     }
-    if(t) h += `<div class="btns"><button type="button" class="btn sec" data-move="-1">Move up</button><button type="button" class="btn sec" data-move="1">Move down</button></div><button type="button" class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete"}</button>`;
+    if(t) h += `<button type="button" class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete"}</button>`;
     h += `</div>`;
     return h;
   };
-  let confirmDel = false;
-  const grab = ()=>{ f.title = val("f-title").trim(); f.notes = val("f-notes").trim();
-    if(type==="daily"){ f.remind = val("f-remind")||null; const at = val("f-auto"), op = val("f-autoop"), v = num(val("f-autov")); const rest = (f.auto||[]).slice(1); f.auto = at ? [{t:at, op, v:op==="set"?null:v}].concat(rest) : (rest.length?rest:null); }
-    if(type==="habit"){ f.target = num(val("f-target")); }
-    if(type==="todo"){ f.due = val("f-due")||null; f.star = sheet.querySelector("#f-star").checked; }
+  let confirmDel = false, more = false;
+  const has = id=>!!sheet.querySelector("#"+id);
+  const grab = ()=>{ f.title = val("f-title").trim(); if(has("f-notes")) f.notes = val("f-notes").trim();
+    if(type==="daily"){ if(has("f-remind")) f.remind = val("f-remind")||null;
+      if(has("f-auto")){ const at = val("f-auto"), op = val("f-autoop"), v = num(val("f-autov")); const rest = (f.auto||[]).slice(1); f.auto = at ? [{t:at, op, v:op==="set"?null:v}].concat(rest) : (rest.length?rest:null); } }
+    if(type==="habit" && has("f-target")){ f.target = num(val("f-target")); }
+    if(type==="todo"){ if(has("f-due")) f.due = val("f-due")||null; if(has("f-star")) f.star = sheet.querySelector("#f-star").checked; }
     sheet.querySelectorAll("[data-clt]").forEach(el=>{ f.checklist[Number(el.dataset.clt)].text = el.value; });
     const c = picked("cat"); if(c) f.cat = c; const d = picked("diff"); if(d) f.diff = Number(d); const b = picked("block"); if(b) f.block = b; const k = picked("kind"); if(k) f.kind = k; const p = picked("period"); if(p) f.period = p; };
   const redraw = ()=>{ grab(); const st = sheet.querySelector(".sheet").scrollTop; sheet.querySelector(".sheet").innerHTML = draw(); sheet.querySelector(".sheet").scrollTop = st; };
   openSheet(draw(), b=>{
     const d = b.dataset;
     if(d.pick){ pickIn(b); return; }
+    if(d.ex){ grab(); f.title = d.ex; redraw(); return; }
+    if(d.more){ grab(); more = !more; redraw(); return; }
+    if(d.freq){ grab(); f.days = d.freq==="all" ? [0,1,2,3,4,5,6] : (f.days.length===7 ? [1,2,3,4,5] : f.days); redraw(); return; }
     if(d.dow!=null){ const i = Number(d.dow); grab(); f.days = f.days.includes(i) ? f.days.filter(x=>x!==i) : f.days.concat(i).sort(); b.setAttribute("aria-pressed", String(f.days.includes(i))); return; }
-    if(d.clearrem){ sheet.querySelector("#f-remind").value = ""; return; }
+    if(d.clearrem){ grab(); f.remind = null; redraw(); return; }
     if(d.cladd){ grab(); f.checklist.push({id:uid(), text:""}); redraw(); const els = sheet.querySelectorAll("[data-clt]"); els[els.length-1].focus(); return; }
     if(d.cldel!=null){ grab(); f.checklist.splice(Number(d.cldel),1); redraw(); return; }
     if(d.s==="cancel"){ closeSheet(); return; }

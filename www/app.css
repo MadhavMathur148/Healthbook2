@@ -268,7 +268,7 @@ table.stats td:first-child{text-align:left;padding-left:0;max-width:0;width:55%;
 .mini i{box-shadow:0 0 calc(8px*var(--ga)) var(--c)}
 .scale button.on{box-shadow:0 0 calc(14px*var(--ga)) color-mix(in srgb,var(--c) 70%,transparent)}
 .drops svg{filter:drop-shadow(0 0 calc(4px*var(--ga)) color-mix(in srgb,var(--c) 60%,transparent))}
-.btn:not(.sec):not(.danger){box-shadow:0 4px calc(20px*var(--ga)) color-mix(in srgb,var(--blue) 55%,transparent)}
+.btn:not(.sec):not(.danger):not(.ghost){box-shadow:0 4px calc(20px*var(--ga)) color-mix(in srgb,var(--blue) 55%,transparent)}
 .btn.danger{box-shadow:0 0 calc(16px*var(--ga)) color-mix(in srgb,var(--red) 30%,transparent)}
 .fab{box-shadow:0 6px calc(26px*var(--ga) + 6px) color-mix(in srgb,var(--blue) 65%,transparent)}
 .now,.pill{box-shadow:0 0 calc(12px*var(--ga)) color-mix(in srgb,var(--blue) 55%,transparent)}
@@ -309,9 +309,58 @@ pre.fmt{white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace;backgrou
 .linkbtn{border:0;background:none;color:var(--blue);font:500 16px var(--sys);cursor:pointer;padding:8px}
 .hero-ic{width:76px;height:76px;border-radius:20px;box-shadow:0 0 calc(30px*var(--ga)) color-mix(in srgb,var(--blue) 45%,transparent)}
 
+/* ---------- charts: made readable without a key ---------- */
+.chart .wknd{fill:var(--ink);opacity:.045}
+.chart .refl{stroke:var(--grey);stroke-width:1.2;stroke-dasharray:4 4;opacity:.8}
+.chart .bandl{font:600 9px var(--sys);fill:var(--grey);letter-spacing:.02em}
+.chart .xl.td{font-weight:700;fill:var(--ink)}
+.ccap{font:400 13px/1.5 var(--sys);color:var(--grey);margin:8px 2px 0}
+
+/* ---------- simplified editor ---------- */
+.fld.big label{font:600 15px var(--sys);color:var(--ink);text-transform:none;letter-spacing:0;margin-bottom:6px}
+.tin.xl{font-size:17px;padding:14px 14px;min-height:52px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 4px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 14px;font:500 14px var(--sys);cursor:pointer;min-height:40px}
+.chip:active{background:var(--fill)}
+.more{width:100%;border:0;background:none;color:var(--blue);font:600 15px var(--sys);padding:14px;cursor:pointer;min-height:48px;border-radius:12px}
+.more:active{background:var(--fill)}
+.adv{display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:16px;background:var(--fill);margin-bottom:4px}
+.adv .fld:last-child{margin-bottom:0}
+.days button,.seg button{min-height:44px}
+
+/* ---------- sign-in ---------- */
+.auth{display:flex;flex-direction:column;gap:18px;width:100%}
+.auth-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+.auth-rings{filter:drop-shadow(0 0 calc(18px*var(--ga)) color-mix(in srgb,var(--blue) 45%,transparent))}
+.auth-hero h3{font:700 26px var(--sys);margin:6px 0 0;letter-spacing:-.02em}
+.auth-hero p{font:400 15px/1.45 var(--sys);color:var(--grey);margin:0;max-width:30ch}
+.perks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;width:100%}
+.perks li{display:flex;gap:12px;align-items:flex-start}
+.perks .pi{font-size:20px;line-height:1.1;flex:none;width:26px;text-align:center}
+.perks b{display:block;font:600 15px var(--sys);color:var(--ink)}
+.perks small{display:block;font:400 13.5px/1.4 var(--sys);color:var(--grey);margin-top:1px}
+.pwrap{position:relative;display:flex}
+.pwrap .tin{flex:1;padding-right:52px}
+.peye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:19px;width:46px;height:46px;cursor:pointer;border-radius:12px}
+.peye:active{background:var(--fill)}
+.btn.ghost{background:none;color:var(--blue);box-shadow:none;border:0;font-weight:600}
+.btn.ghost:active{background:var(--fill)}
+
+/* ---------- report ---------- */
+.headline{border-left:3px solid var(--blue)}
+.headline p{font:600 16px/1.5 var(--sys);color:var(--ink);margin:6px 0 0}
+
 @media (max-width:400px){
   .summary{grid-template-columns:minmax(0,1fr);justify-items:center}
   .rlist{width:100%}
   .rings{width:160px;height:160px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* keystone habit block in the monthly summary */
+.keystone{border-left:3px solid var(--green)}
+.kh{font:700 18px var(--sys);color:var(--ink);letter-spacing:-.01em}
+.ks{font:400 13px var(--sys);color:var(--grey);margin:2px 0 10px}
+.ktab td:nth-child(2){color:var(--green);font-weight:600}
+/* keeps goal/usual labels legible where they cross a bar */
+.chart .bandl.bg{paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
