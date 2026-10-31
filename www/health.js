@@ -37,8 +37,13 @@ async function healthSync(days, loud){
     if(has("sleep")){ const r = await HC.readSamples(Object.assign({dataType:"sleep", limit:1000, ascending:true}, range)); const bySrc = {};
       /* Sum each source's sessions per night (naps add up), then take the largest source,
          so a ring and a phone recording the same night aren't counted twice. */
+      /* Only real sleep stages count. "awake" and "inBed" are time in bed, not sleep, and
+         some providers emit an "inBed" segment spanning the whole session alongside the
+         light/deep/rem segments, which would otherwise roughly double the night. */
+      const ASLEEP = {asleep:1, rem:1, deep:1, light:1};
       for(const s of (r.samples||[])){ let m = 0;
-        if(s.stages && s.stages.length) m = s.stages.filter(x=>x.stage!=="awake").reduce((a,x)=>a+(x.durationMinutes||0),0);
+        const st = (s.stages||[]).filter(x=>ASLEEP[x.stage]);
+        if(st.length) m = st.reduce((a,x)=>a+(x.durationMinutes||0),0);
         else m = s.value || (new Date(s.endDate)-new Date(s.startDate))/60000;
         const k = localKey(s.endDate), src = s.sourceId || s.sourceName || "x";
         (bySrc[k] = bySrc[k] || {}); bySrc[k][src] = (bySrc[k][src]||0) + m; }

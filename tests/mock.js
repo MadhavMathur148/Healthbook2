@@ -11,7 +11,7 @@
         const v = o.dataType==="steps" ? 5000+((i*1373)%6000) : o.dataType==="restingHeartRate" ? 62+(i%5) + (i<15?6:0) : o.dataType==="weight" ? (i%7===0 ? 70.5 - i*0.05 : 0) : 0;
         if(v) out.push({startDate:d.toISOString(), endDate:e.toISOString(), value:v, values:{}}); } return {samples:out}; },
     readSamples: async(o)=>{ const out = []; for(let i=40;i>=0;i--){ const d = dayISO(i);
-        if(o.dataType==="sleep"){ const s = new Date(d); s.setHours(-1,30); const e = new Date(d); e.setHours(6, (i*17)%60); out.push({startDate:s.toISOString(), endDate:e.toISOString(), value:(e-s)/60000 - 20, sourceId:"ring", stages:[{stage:"light",durationMinutes:(e-s)/60000-60},{stage:"awake",durationMinutes:20},{stage:"deep",durationMinutes:40}]});
+        if(o.dataType==="sleep"){ const s = new Date(d); s.setHours(-1,30); const e = new Date(d); e.setHours(6, (i*17)%60); out.push({startDate:s.toISOString(), endDate:e.toISOString(), value:(e-s)/60000 - 20, sourceId:"ring", stages:[{stage:"inBed",durationMinutes:(e-s)/60000},{stage:"light",durationMinutes:(e-s)/60000-60},{stage:"awake",durationMinutes:20},{stage:"deep",durationMinutes:40}]});
           out.push({startDate:s.toISOString(), endDate:e.toISOString(), value:(e-s)/60000 - 30, sourceId:"phone"}); }
         if(o.dataType==="heartRateVariability"){ const s = new Date(d); s.setHours(3); out.push({startDate:s.toISOString(), endDate:s.toISOString(), value:55-(i<15?12:0)+(i%4)}); } } return {samples:out}; }
   };

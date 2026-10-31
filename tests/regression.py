@@ -1,7 +1,8 @@
-import asyncio, sys, json, subprocess, time
+import asyncio, sys, os, json, subprocess, time
 from playwright.async_api import async_playwright
 S=sys.argv[1]
-srv = subprocess.Popen([sys.executable,"-m","http.server","8767","-d","/home/claude/healthbook-app/www"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
+WWW = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "www")
+srv = subprocess.Popen([sys.executable,"-m","http.server","8767","-d",WWW], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 MOCK=open(S+"/mock.js").read()
 fails=[]
 def check(name, cond, info=""):

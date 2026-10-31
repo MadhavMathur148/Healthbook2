@@ -171,7 +171,6 @@ function totals(){
   return {xp, coins};
 }
 function levelOf(xp){ let lvl = 1, need = 100, rem = xp; while(rem >= need){ rem -= need; lvl++; need = 100 + (lvl-1)*25; } return {lvl, into:rem, need}; }
-function grant(k, key, amount){ const before = levelOf(totals().xp).lvl; sub(k,"x")[key] = amount; afterXp(before, amount); }
 function revoke(k, key){ const x = day(k).x; if(x){ delete x[key]; } tidy(k); }
 let pendingLevel = null;
 function afterXp(before, amount){
