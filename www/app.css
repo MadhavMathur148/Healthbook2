@@ -261,8 +261,8 @@ table.stats td:first-child{text-align:left;padding-left:0;max-width:0;width:55%;
 .xpbar i{box-shadow:0 0 calc(12px*var(--ga)) color-mix(in srgb,var(--blue) 70%,transparent)}
 .coins i,.buy i{box-shadow:0 0 calc(10px*var(--ga)) color-mix(in srgb,var(--yellow) 80%,transparent),inset 0 0 0 2px rgba(0,0,0,.08)}
 .ava{box-shadow:0 0 calc(18px*var(--ga)) color-mix(in srgb,var(--blue) 45%,transparent)}
-.rrow .v,.fl > span,.chip span,.tile .tv,.big{text-shadow:0 0 calc(14px*var(--ga)) color-mix(in srgb,currentColor 55%,transparent)}
-.chip b,.tile .tn{text-shadow:0 0 calc(10px*var(--ga)) color-mix(in srgb,var(--c) 60%,transparent)}
+/* No glow on text. Numbers and labels stay crisp and easy to read; the glow belongs
+   on the charts, rings and colour dots, where it's decoration rather than data. */
 .rrow .nm i,.dot,.fl b i,.legendrow i{box-shadow:0 0 calc(8px*var(--ga)) var(--c,currentColor)}
 .hb{box-shadow:0 0 calc(12px*var(--ga)) color-mix(in srgb,var(--c) 35%,transparent)}
 .mini i{box-shadow:0 0 calc(8px*var(--ga)) var(--c)}
