@@ -123,22 +123,43 @@ function meAccountHTML(){
     <li class="row plain tap" data-acct="delete"><span class="rt" style="color:var(--red)">Delete account</span><span></span></li>
   </ul></div>`;
 }
+/* Concentric rings in the four brand colours, echoing the app icon. */
+function ringLogo(){
+  const r = [[34,"var(--blue)"],[26,"var(--red)"],[18,"var(--yellow)"],[10,"var(--green)"]];
+  return `<svg viewBox="0 0 80 80" width="76" height="76" aria-hidden="true">${
+    r.map(([rad,c])=>`<circle cx="40" cy="40" r="${rad}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${2*Math.PI*rad*0.78} ${2*Math.PI*rad}" transform="rotate(-90 40 40)"/>`).join("")}</svg>`;
+}
+const AUTH_PERKS = [["☁️","Your plan is backed up","Lose your phone, keep everything."],
+                    ["📱","Use it on any phone","Pick up exactly where you left off."],
+                    ["🔒","Only you can see it","Your data is yours alone."]];
 function openAuth(mode, after){
-  let busy = false;
-  const draw = ()=>`<span class="grab"></span><h3 class="big3">${mode==="signin"?"Sign in":"Create your account"}</h3><p class="sub">${mode==="signin"?"Your plan and logs will sync to this phone.":"Back up your data and use Healthbook on any phone."}</p>
-    <div class="form"><div class="fld"><label for="au-email">Email</label><input class="tin" id="au-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" value="${esc(S.pendingEmail||"")}"></div>
-    <div class="fld"><label for="au-pass">Password</label><input class="tin" id="au-pass" type="password" autocomplete="${mode==="signin"?"current-password":"new-password"}" placeholder="${mode==="signin"?"":"At least 8 characters"}"></div>
-    <p class="hint bad" id="au-err" hidden></p>
-    <button class="btn" data-s="go">${mode==="signin"?"Sign in":"Create account"}</button>
-    <button class="btn sec" data-s="switch">${mode==="signin"?"New here? Create an account":"Already have an account? Sign in"}</button></div>`;
+  let busy = false, show = false;
+  const draw = ()=>`<span class="grab"></span>
+    <div class="auth">
+      <div class="auth-hero"><div class="auth-rings">${ringLogo()}</div>
+        <h3>${mode==="signin"?"Welcome back":"Create your account"}</h3>
+        <p>${mode==="signin"?"Sign in and your plan, logs and summaries come right back.":"It takes ten seconds and keeps everything safe."}</p></div>
+      ${mode==="signup"?`<ul class="perks">${AUTH_PERKS.map(([i,t,s])=>`<li><span class="pi">${i}</span><span><b>${t}</b><small>${s}</small></span></li>`).join("")}</ul>`:""}
+      <div class="form">
+        <div class="fld"><label for="au-email">Email</label><input class="tin xl" id="au-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com" value="${esc(S.pendingEmail||"")}"></div>
+        <div class="fld"><label for="au-pass">Password</label><div class="pwrap"><input class="tin xl" id="au-pass" type="${show?"text":"password"}" autocomplete="${mode==="signin"?"current-password":"new-password"}" placeholder="${mode==="signin"?"Your password":"At least 8 characters"}"><button type="button" class="peye" data-s="eye" aria-label="${show?"Hide password":"Show password"}">${show?"🙈":"👁️"}</button></div></div>
+        <p class="hint bad" id="au-err" hidden></p>
+        <button class="btn" data-s="go">${mode==="signin"?"Sign in":"Create my account"}</button>
+        <button class="btn ghost" data-s="switch">${mode==="signin"?"New here? Create an account":"Already have an account? Sign in"}</button>
+        <p class="hint" style="text-align:center">You can skip this and use Healthbook offline — everything works without an account.</p>
+      </div>
+    </div>`;
   openSheet(draw(), async b=>{
     const d = b.dataset;
-    if(d.s==="switch"){ mode = mode==="signin"?"signup":"signin"; sheet.querySelector(".sheet").innerHTML = draw(); return; }
+    if(d.s==="eye"){ const el = sheet.querySelector("#au-pass"), v = el.value; show = !show;
+      const em = val("au-email"); sheet.querySelector(".sheet").innerHTML = draw();
+      sheet.querySelector("#au-email").value = em; const p = sheet.querySelector("#au-pass"); p.value = v; p.focus(); return; }
+    if(d.s==="switch"){ mode = mode==="signin"?"signup":"signin"; const em = val("au-email"); sheet.querySelector(".sheet").innerHTML = draw(); sheet.querySelector("#au-email").value = em; return; }
     if(d.s!=="go" || busy) return;
     const email = val("au-email").trim(), pass = val("au-pass"), err = sheet.querySelector("#au-err");
-    const fail = m=>{ err.textContent = m; err.hidden = false; busy = false; b.disabled = false; b.textContent = mode==="signin"?"Sign in":"Create account"; };
-    if(!/^\S+@\S+\.\S+$/.test(email)) return fail("Enter a valid email address.");
-    if(pass.length < 8) return fail("Use a password of at least 8 characters.");
+    const fail = m=>{ err.textContent = m; err.hidden = false; busy = false; b.disabled = false; b.textContent = mode==="signin"?"Sign in":"Create my account"; };
+    if(!/^\S+@\S+\.\S+$/.test(email)) return fail("That email doesn't look right. Check for a typo.");
+    if(pass.length < 8) return fail("Passwords need at least 8 characters.");
     busy = true; b.disabled = true; b.textContent = "Please wait…";
     try{
       if(mode==="signin"){ await cloudSignIn(email, pass); closeSheet(); toast("Signed in"); if(window.applySchedule) applySchedule(); applyTheme(); if(after) after("signin"); else { render(true); if(!S.onboarded) setTimeout(window.signupFlow || onboarding, 250); else { scheduleReminders(false); if(window.reportsCheck) reportsCheck(); } } }
