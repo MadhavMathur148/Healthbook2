@@ -125,8 +125,8 @@ function signupFlow(){
     if(s2==="auth"){ if(busy) return;
       const email = val("su-email").trim(), pass = val("su-pass"), err = sheet.querySelector("#su-err");
       const fail = m=>{ err.textContent = m; err.hidden = false; busy = false; b.disabled = false; b.textContent = acctMode==="signin"?"Sign in":"Create account"; };
-      if(!/^\S+@\S+\.\S+$/.test(email)) return fail("Enter a valid email address.");
-      if(pass.length < 8) return fail("Use a password of at least 8 characters.");
+      if(!/^\S+@\S+\.\S+$/.test(email)) return fail("That email doesn't look right. Check for a typo.");
+      if(pass.length < 8) return fail("Passwords need at least 8 characters.");
       busy = true; b.disabled = true; b.textContent = "Please wait…";
       try{
         if(acctMode==="signin"){ await cloudSignIn(email, pass); busy = false; if(S.onboarded){ applySchedule(); closeSheet(); render(); toast(`Welcome back${S.profile.name?", "+S.profile.name:""}`); scheduleReminders(false); if(window.reportsCheck) reportsCheck(); if(window.healthAutoSync) healthAutoSync(); return; } Object.assign(a, S.profile||{}); step = "about"; redraw(); }
