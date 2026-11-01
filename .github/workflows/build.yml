@@ -49,20 +49,33 @@ jobs:
 
       - name: Load release key
         env:
-          KEYSTORE_B64: ${{ secrets.HB_KEYSTORE_B64 }}
+          HB_PASS: ${{ secrets.HB_SIGNING_PASSPHRASE }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "HB_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          # The signing key only ever exists inside this build. The repo holds it encrypted
+          # with a passphrase that lives in your password manager and in the repo's secrets.
+          if [ -z "$HB_PASS" ]; then
+            echo "::error::Add the HB_SIGNING_PASSPHRASE secret in Settings → Secrets and variables → Actions, then run this again."
+            exit 1
           fi
+          KS="$RUNNER_TEMP/release.keystore"; ENC=android/app/release.keystore.enc
+          if [ ! -f "$ENC" ]; then
+            keytool -genkeypair -v -storetype PKCS12 -keystore "$KS" -alias healthbook \
+              -keyalg RSA -keysize 4096 -validity 11000 -dname "CN=Healthbook" \
+              -storepass:env HB_PASS -keypass:env HB_PASS
+            openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:HB_PASS -in "$KS" -out "$ENC"
+            git config user.name "healthbook-build"; git config user.email "healthbook-build@users.noreply.github.com"
+            git add "$ENC"; git commit -m "Add encrypted release key [skip ci]"; git push
+          else
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:HB_PASS -in "$ENC" -out "$KS" \
+              || { echo "::error::The HB_SIGNING_PASSPHRASE secret doesn't unlock the release key."; exit 1; }
+          fi
+          echo "HB_KEYSTORE_FILE=$KS" >> "$GITHUB_ENV"
 
       - name: Build signed APK
         working-directory: android
         env:
           VERSION_CODE: ${{ github.run_number }}
-          HB_KEYSTORE_PASSWORD: ${{ secrets.HB_KEYSTORE_PASSWORD }}
-          HB_KEY_ALIAS: ${{ secrets.HB_KEY_ALIAS }}
-          HB_KEY_PASSWORD: ${{ secrets.HB_KEY_PASSWORD }}
+          HB_PASS: ${{ secrets.HB_SIGNING_PASSPHRASE }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace

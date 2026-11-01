@@ -2,7 +2,7 @@
   "name": "healthbook",
   "version": "1.0.0",
   "private": true,
-  "description": "Madhav's personal habit, logging and trends app",
+  "description": "Habit, logging and trends app",
   "scripts": {
     "sync": "cap sync android"
   },

@@ -18,19 +18,13 @@ android {
     }
     signingConfigs {
         release {
-            // The release key comes from CI secrets (HB_KEYSTORE_*), never from the repo.
-            // Until those secrets exist, the old public key is used so builds keep installing as updates.
+            // Supplied by the build server only. There is no fallback key in this repo.
             def ks = System.getenv("HB_KEYSTORE_FILE")
             if (ks && file(ks).exists()) {
                 storeFile file(ks)
-                storePassword System.getenv("HB_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("HB_KEY_ALIAS")
-                keyPassword System.getenv("HB_KEY_PASSWORD")
-            } else {
-                storeFile file("healthbook.keystore")
-                storePassword "healthbook-app"
+                storePassword System.getenv("HB_PASS")
                 keyAlias "healthbook"
-                keyPassword "healthbook-app"
+                keyPassword System.getenv("HB_PASS")
             }
         }
     }

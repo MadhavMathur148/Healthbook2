@@ -16,12 +16,9 @@ signing.properties
 google-services.json
 GoogleService-Info.plist
 service-account*.json
-# Signing keystores. See README: Healthbook deliberately commits ONE
-# throwaway debug-grade keystore so public CI builds install as updates.
-# Any real/private keystore must stay out of git.
+# Signing keys never go in git. Only the encrypted release key does.
 *.jks
 *.keystore
-!android/app/healthbook.keystore
 
 # ---------------------------------------------------------------
 # Node

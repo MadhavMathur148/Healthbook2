@@ -50,6 +50,8 @@ That's the whole point. Not "you missed a day" — but *this is the thing to pro
 
 Android 8.0 or newer. Not on the Play Store — install it directly.
 
+**Updating from 1.0.10 or earlier:** the app's signing key was replaced, so this one update won't install over the old version. Export a backup in Me (or sign in so it syncs), uninstall, install the new version, then import or sign in. Every update after that installs normally.
+
 ---
 
 ## A tour
@@ -109,5 +111,5 @@ Healthbook describes what happened together in your own data. It does not diagno
 ---
 
 <div align="center">
-<sub>Built for myself, shared because it might be useful to you.</sub>
+<sub>© Madhav Mathur. All rights reserved. Not open source — see LICENSE.</sub>
 </div>
