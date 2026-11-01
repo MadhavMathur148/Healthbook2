@@ -3,7 +3,10 @@
   "appName": "Healthbook",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#F2F2F7"
+    "backgroundColor": "#F2F2F7",
+    "webContentsDebuggingEnabled": false,
+    "allowMixedContent": false,
+    "captureInput": false
   },
   "plugins": {
     "LocalNotifications": {

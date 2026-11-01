@@ -44,7 +44,8 @@ async def main():
         await pg.wait_for_timeout(700)
         await onboard(pg)
 
-        await pg.add_script_tag(content=SEED)
+        await pg.route("**/__seed.js", lambda r: asyncio.ensure_future(r.fulfill(status=200, content_type="application/javascript", body=SEED)))
+        await pg.add_script_tag(url="/__seed.js")
         n = await pg.evaluate("seedDemo(5)")
         check("seeded history", n > 140, n)
 

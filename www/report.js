@@ -255,9 +255,9 @@ function buildPDF(R){
   return doc;
 }
 async function sharePDF(R){
-  let doc; try{ doc = buildPDF(R); }catch(e){ console.warn(e); toast("Couldn't create the PDF"); return; }
+  let doc; try{ doc = buildPDF(R); }catch(e){ dlog(e); toast("Couldn't create the PDF"); return; }
   const name = `health-summary-${R.month}${R.partial?"-so-far":""}.pdf`;
-  if(FS && SHARE){ try{ const b64 = doc.output("datauristring").split(",")[1]; const w = await FS.writeFile({path:name, data:b64, directory:"CACHE"}); await SHARE.share({title:`Health summary: ${R.label}`, files:[w.uri], dialogTitle:"Share summary"}); return; }catch(e){ if(String(e && e.message || e).toLowerCase().includes("cancel")) return; toast("Couldn't share the PDF"); return; } }
+  if(FS && SHARE){ try{ const b64 = doc.output("datauristring").split(",")[1]; const w = await FS.writeFile({path:name, data:b64, directory:"CACHE"}); try{ await SHARE.share({title:`Health summary: ${R.label}`, files:[w.uri], dialogTitle:"Share summary"}); } finally { setTimeout(()=>dropShared(name), 60e3); } return; }catch(e){ if(String(e && e.message || e).toLowerCase().includes("cancel")) return; toast("Couldn't share the PDF"); return; } }
   try{ doc.save(name); }catch(e){ toast("Couldn't save the PDF"); }
 }
 V.addEventListener("click", e=>{ const b = e.target.closest("[data-report]"); if(!b) return; openReport(b.dataset.report); });

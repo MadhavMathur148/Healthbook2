@@ -20,7 +20,7 @@ async function healthConnect(){
     const h = hcState(); h.granted = ok; h.connected = ok.length>0; save();
     if(!ok.length){ toast("No data shared. You can allow it in Health Connect settings."); return false; }
     await healthSync(30, true); return true;
-  }catch(e){ toast("Couldn't connect to Health Connect"); console.warn(e); return false; }
+  }catch(e){ toast("Couldn't connect to Health Connect"); dlog(e); return false; }
 }
 function localKey(iso){ return dkey(new Date(iso)); }
 async function healthSync(days, loud){
@@ -51,7 +51,7 @@ async function healthSync(days, loud){
     if(has("heartRateVariability")){ const r = await HC.readSamples(Object.assign({dataType:"heartRateVariability", limit:2000, ascending:true}, range)); const acc = {};
       for(const s of (r.samples||[])){ if(!(s.value>0)) continue; const k = localKey(s.startDate); (acc[k] = acc[k] || []).push(s.value); }
       for(const k in acc) put("hrv", k, Math.round(acc[k].reduce((a,b)=>a+b,0)/acc[k].length)); }
-  }catch(e){ console.warn("health sync", e); if(loud) toast("Some Health Connect data couldn't be read"); }
+  }catch(e){ dlog("health sync", e); if(loud) toast("Some Health Connect data couldn't be read"); }
   let n = 0; const touched = new Set();
   for(const id in vals){ if(!trk(id)) continue;
     for(const k in vals[id]){ const v = vals[id][k], d = S.hist[k], cur = d && d.l ? d.l[id] : undefined, src = d && d.src ? d.src[id] : undefined;

@@ -67,7 +67,8 @@ async def main():
             await pg.click("[data-s=done]")
             await pg.wait_for_timeout(600)
 
-            await pg.add_script_tag(content=SEED)
+            await pg.route("**/__seed.js", lambda r: asyncio.ensure_future(r.fulfill(status=200, content_type="application/javascript", body=SEED)))
+            await pg.add_script_tag(url="/__seed.js")
             await pg.evaluate("seedDemo(5)")
             await pg.evaluate("render()")
             await pg.wait_for_timeout(300)

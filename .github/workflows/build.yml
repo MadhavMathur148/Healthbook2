@@ -9,7 +9,24 @@ permissions:
   contents: write
 
 jobs:
+  leak-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test runner
+        run: pip install playwright==1.*
+      - name: Nothing technical on screen, nothing leaves the phone
+        run: |
+          python tests/leak_sweep.py
+          python tests/no_tech_leak.py
+      - name: Easy days and experiments
+        run: python tests/lab_test.py
+
   build:
+    needs: leak-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,13 +47,26 @@ jobs:
       - name: Copy app into Android project
         run: npx cap sync android
 
+      - name: Load release key
+        env:
+          KEYSTORE_B64: ${{ secrets.HB_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "HB_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          fi
+
       - name: Build signed APK
         working-directory: android
         env:
           VERSION_CODE: ${{ github.run_number }}
+          HB_KEYSTORE_PASSWORD: ${{ secrets.HB_KEYSTORE_PASSWORD }}
+          HB_KEY_ALIAS: ${{ secrets.HB_KEY_ALIAS }}
+          HB_KEY_PASSWORD: ${{ secrets.HB_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
+          rm -f "$RUNNER_TEMP/release.keystore"
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk Healthbook.apk

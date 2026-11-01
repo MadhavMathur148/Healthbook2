@@ -18,11 +18,20 @@ android {
     }
     signingConfigs {
         release {
-            // Fixed key so every build installs as an update over the last one, keeping your data.
-            storeFile file("healthbook.keystore")
-            storePassword "healthbook-app"
-            keyAlias "healthbook"
-            keyPassword "healthbook-app"
+            // The release key comes from CI secrets (HB_KEYSTORE_*), never from the repo.
+            // Until those secrets exist, the old public key is used so builds keep installing as updates.
+            def ks = System.getenv("HB_KEYSTORE_FILE")
+            if (ks && file(ks).exists()) {
+                storeFile file(ks)
+                storePassword System.getenv("HB_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("HB_KEY_ALIAS")
+                keyPassword System.getenv("HB_KEY_PASSWORD")
+            } else {
+                storeFile file("healthbook.keystore")
+                storePassword "healthbook-app"
+                keyAlias "healthbook"
+                keyPassword "healthbook-app"
+            }
         }
     }
     buildTypes {

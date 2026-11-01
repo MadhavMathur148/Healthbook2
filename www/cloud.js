@@ -3,7 +3,7 @@
 const CLOUD = (()=>{
   const c = window.HB_CONFIG || {};
   if(!c.supabaseUrl || !c.supabaseAnonKey || !window.supabase || !window.supabase.createClient) return null;
-  try{ return window.supabase.createClient(c.supabaseUrl, c.supabaseAnonKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storage:window.localStorage}}); }catch(e){ console.warn("cloud", e); return null; }
+  try{ return window.supabase.createClient(c.supabaseUrl, c.supabaseAnonKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storage:window.localStorage}}); }catch(e){ dlog("cloud", e); return null; }
 })();
 let cloudUser = null, cloudTimer = null, cloudLast = 0, cloudErr = null, cloudPushing = false, cloudPending = false;
 
@@ -19,7 +19,7 @@ function msgOf(e){ const m = String((e && (e.message || e.error_description)) ||
   if(/expired|jwt|token|session/i.test(m)) return "Your session timed out. Sign in again to keep syncing.";
   /* Anything unrecognised is an internal message. Log it for debugging, but never
      put raw server wording in front of the person. */
-  console.warn("cloud error", m);
+  dlog("cloud error", m);
   return "Something went wrong. Your data is safe on this phone — try again in a moment."; }
 
 async function cloudSignUp(email, password){

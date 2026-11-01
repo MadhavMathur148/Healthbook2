@@ -5,6 +5,8 @@ window.HB_VERSION = "1.0 ";
 /* ================= platform ================= */
 const Cap = window.Capacitor;
 const NATIVE = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
+/* Diagnostics only in a desktop browser. The phone build writes nothing to the system log. */
+const dlog = (...a)=>{ if(!NATIVE) try{ console.warn(...a); }catch(e){} };
 function plugin(name){ if(!NATIVE) return null; try{ return Cap.registerPlugin ? Cap.registerPlugin(name) : (Cap.Plugins && Cap.Plugins[name]); }catch(e){ return (Cap.Plugins && Cap.Plugins[name]) || null; } }
 const LN = plugin("LocalNotifications"), FS = plugin("Filesystem"), SHARE = plugin("Share"), HAPT = plugin("Haptics"), APP = plugin("App");
 const SAVE_FILE = "healthbook.json";
@@ -802,24 +804,30 @@ async function scheduleReminders(ask){
     let perm = await LN.checkPermissions();
     if(perm.display!=="granted" && ask) perm = await LN.requestPermissions();
     if(perm.display!=="granted"){ if(ask){ S.settings.reminders = false; save(); render(true); toast("Notifications are off for Healthbook in Android settings"); } return; }
+    /* Private channel: the lock screen shows that a reminder arrived, not what it says. */
+    try{ await LN.createChannel({id:"reminders", name:"Reminders", importance:4, visibility:0}); }catch(e){}
     const now = Date.now(), list = [], today = TODAY();
     const at = (k, hhmm)=>{ const [hh,mm] = hhmm.split(":").map(Number); const d = new Date(k+"T00:00:00"); d.setHours(hh, mm, 0, 0); if(hh < (S.settings.dayStart||0)) d.setDate(d.getDate()+1); return d; };
     for(let i=0;i<14;i++){ const k = addDays(today, i);
       for(const t of dailies()){ if(!t.remind || !t.days.includes(dowOf(k))) continue; if(isDone(t,k)) continue;
         const when = at(k, t.remind); if(when.getTime() <= now+30e3) continue;
-        list.push({id:hashId(t.id)+i, title:t.title, body:t.notes||"Open Healthbook to tick it off.", smallIcon:"ic_stat_healthbook", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{tid:t.id}}); }
+        list.push({id:hashId(t.id)+i, title:t.title, body:t.notes||"Open Healthbook to tick it off.", smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{tid:t.id}}); }
       if(S.settings.logReminder){ const logged = logVal(k,"mood")!=null && logVal(k,"stress")!=null, when = at(k, S.settings.logReminder);
-        if(!logged && when.getTime() > now+30e3) list.push({id:150000000+i, title:"Log your day", body:"Mood, stress, water, steps. Ten seconds.", smallIcon:"ic_stat_healthbook", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{go:"log"}}); }
+        if(!logged && when.getTime() > now+30e3) list.push({id:150000000+i, title:"Log your day", body:"Mood, stress, water, steps. Ten seconds.", smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{go:"log"}}); }
     }
-    list.push({id:160000000, title:"Your monthly summary is ready", body:"See last month's patterns in Trends, ready to share with a doctor.", smallIcon:"ic_stat_healthbook", schedule:{on:{day:1, hour:9, minute:0}, allowWhileIdle:true}, extra:{go:"trends"}});
+    list.push({id:160000000, title:"Your monthly summary is ready", body:"See last month's patterns in Trends, ready to share with a doctor.", smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{on:{day:1, hour:9, minute:0}, allowWhileIdle:true}, extra:{go:"trends"}});
     await LN.schedule({notifications:list});
-  }catch(e){ console.warn("reminders", e); }
+  }catch(e){ dlog("reminders", e); }
 }
 
 /* ================= backup ================= */
+/* Shared files are written to the private cache only for the moment it takes to hand them over,
+   then removed. Anything left behind by a crash is swept at the next start. */
+async function dropShared(path){ if(!FS) return; try{ await FS.deleteFile({path, directory:"CACHE"}); }catch(e){} }
+async function sweepShared(){ if(!FS) return; try{ const r = await FS.readdir({path:"", directory:"CACHE"}); for(const f of (r.files||[])){ const n = typeof f==="string" ? f : f.name; if(/^(healthbook-|health-summary-).*\.(json|pdf)$/i.test(n||"")) await dropShared(n); } }catch(e){} }
 async function exportBackup(){
   const data = JSON.stringify(Object.assign({app:"healthbook", exported:new Date().toISOString()}, S), null, 1), name = `healthbook-backup-${TODAY()}.json`;
-  if(FS && SHARE){ try{ const w = await FS.writeFile({path:name, data, directory:"CACHE", encoding:"utf8"}); await SHARE.share({title:"Healthbook backup", files:[w.uri]}); return; }catch(e){ if(String(e&&e.message||e).toLowerCase().includes("cancel")) return; toast("Couldn't share the backup"); return; } }
+  if(FS && SHARE){ try{ const w = await FS.writeFile({path:name, data, directory:"CACHE", encoding:"utf8"}); try{ await SHARE.share({title:"Healthbook backup", files:[w.uri]}); } finally { setTimeout(()=>dropShared(name), 60e3); } return; }catch(e){ if(String(e&&e.message||e).toLowerCase().includes("cancel")) return; toast("Couldn't share the backup"); return; } }
   try{ const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data],{type:"application/json"})); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }catch(e){ toast("Couldn't save the backup"); }
 }
 function importBackup(file){
@@ -1143,6 +1151,7 @@ async function boot(){
   save(); lastDay = TODAY();
   applyTheme();
   render();
+  sweepShared();
   if(window.cloudInit) await cloudInit();
   if(!S.onboarded) setTimeout(window.signupFlow || onboarding, 250);
   else { scheduleReminders(false); if(window.reportsCheck) reportsCheck(); if(window.healthAutoSync) healthAutoSync(); }
