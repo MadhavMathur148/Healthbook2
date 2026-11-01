@@ -147,6 +147,7 @@ function migrate(s){
   s.rewards = s.rewards.filter(r=>r && r.title).map(r=>({id:SAFE_ID.test(String(r.id||""))?r.id:uid(), title:String(r.title).slice(0,80), cost:Math.max(1,Math.round(Number(r.cost)||50))}));
   s.removed = s.removed && typeof s.removed==="object" ? s.removed : {};
   if(s.settings.logReminder!=null && !isHHMM(s.settings.logReminder)) s.settings.logReminder = null;
+  s.experiments = window.cleanExperiments ? cleanExperiments(s.experiments) : (Array.isArray(s.experiments) ? s.experiments : []);
   return s;
 }
 function loadLocal(){ try{ const raw = localStorage.getItem("healthbook-app"); return raw ? JSON.parse(raw) : null; }catch(e){ return null; } }
@@ -183,7 +184,8 @@ function afterXp(before, amount){
 const dailies = ()=>S.tasks.filter(t=>t.type==="daily" && !t.archived);
 const habits = ()=>S.tasks.filter(t=>t.type==="habit" && !t.archived);
 const todos = ()=>S.tasks.filter(t=>t.type==="todo" && !t.archived);
-const isDue = (t,k)=>t.days.includes(dowOf(k)) && k >= (t.created||"2000-01-01");
+/* On an easy day only Easy dailies are due; the rest pause, so their streaks wait instead of breaking. */
+const isDue = (t,k)=>t.days.includes(dowOf(k)) && k >= (t.created||"2000-01-01") && !((t.diff||1)>1 && S.hist[k] && S.hist[k].easy);
 const isDone = (t,k)=>!!(S.hist[k] && S.hist[k].d && S.hist[k].d[t.id]);
 function streakOf(t, k){
   k = k || TODAY(); let s = 0, cur = isDone(t,k) ? k : addDays(k,-1);
@@ -349,6 +351,7 @@ function vToday(){
   const k = TODAY(), tot = totals(), L = levelOf(tot.xp), due = dueToday(k), done = due.filter(t=>isDone(t,k)).length, nu = nextUp(k);
   let h = header("Today", kdate(k).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"}));
   h += `<div class="card prof"><div class="ava"><span>${L.lvl}</span></div><div style="min-width:0"><div class="pname">${esc(S.profile.name||"You")}</div><div class="plvl">Level ${L.lvl} · ${L.into} / ${L.need} XP</div><div class="xpbar"><i style="width:${L.into/L.need*100}%"></i></div></div><button class="coins" data-go="me" style="border:0;background:none;cursor:pointer" aria-label="${tot.coins} coins, open rewards"><i></i>${tot.coins}</button></div>`;
+  if(window.todayLabHTML) h += todayLabHTML(k);
   h += `<div class="card"><div class="summary">${ringsSVG(k)}<div class="rlist">`;
   for(const c of CAT_ORDER){ const list = due.filter(t=>t.cat===c); h += `<div class="rrow"><span class="nm"><i style="background:${CATS[c].c};--c:${CATS[c].c}"></i>${CATS[c].name}</span><span class="v" style="color:${CATS[c].c}">${list.filter(t=>isDone(t,k)).length}<small>/${list.length}</small></span></div>`; }
   h += `</div></div><div class="upnext">${nu?`<span class="ic" style="background:${CATS[nu.cat].c};--c:${CATS[nu.cat].c}">${ICON[nu.cat]}</span><div style="flex:1;min-width:0"><div class="lbl">Up next</div><div class="tx">${esc(nu.title)}</div></div><input type="checkbox" class="cb" style="--c:${CATS[nu.cat].c}" data-daily="${nu.id}" aria-label="Done: ${esc(nu.title)}">`:`<span class="ic" style="background:var(--green);--c:var(--green)">${ICON.done}</span><div><div class="lbl">Today</div><div class="tx">${due.length?"Every daily done. Rest.":"Nothing scheduled today."}</div></div>`}</div></div>`;
@@ -362,7 +365,8 @@ function vToday(){
   if(hs.length) h += `<div class="group"><div class="cap">Habits</div><ul class="list">${hs.map(t=>habitRow(t,k)).join("")}</ul></div>`;
   const td = todos().filter(t=>!t.done || t.doneDay===k).sort((a,b)=>(b.star-a.star)||((a.due||"9")<(b.due||"9")?-1:1));
   if(td.length) h += `<div class="group"><div class="cap">To-dos</div><ul class="list">${td.slice(0,8).map(todoRow).join("")}</ul>${td.length>8?`<p class="foot">${td.length-8} more in Tasks.</p>`:""}</div>`;
-  if(!due.length && !hs.length && !td.length) h += `<div class="card empty">No tasks yet. Add your first in the Tasks tab.</div>`;
+  if(!due.length && !hs.length && !td.length && !dailies().length) h += `<div class="card empty">No tasks yet. Add your first in the Tasks tab.</div>`;
+  if(window.easyFootHTML) h += easyFootHTML(k);
   return h;
 }
 
@@ -537,6 +541,7 @@ function vTrends(){
   if(hs.length){ h += `<div class="group"><div class="cap">Habits · totals in range</div><div class="card"><table class="stats"><thead><tr><th>Habit</th><th>Done</th><th>Slips</th></tr></thead><tbody>`;
     for(const t of hs){ let u = 0, n = 0; for(const k of keys){ u += habitCount(t,k,"u"); n += habitCount(t,k,"n"); } h += `<tr><td><span class="dot" style="--c:${CATS[t.cat].c};display:inline-block;margin-right:8px;vertical-align:0"></span>${esc(t.title)}</td><td>${t.kind==="bad"?"–":u}</td><td>${t.kind==="good"?"–":n}</td></tr>`; }
     h += `</tbody></table></div></div>`; }
+  if(window.experimentsHTML) h += experimentsHTML();
   if(window.reportsHTML) h += reportsHTML();
   return h;
 }

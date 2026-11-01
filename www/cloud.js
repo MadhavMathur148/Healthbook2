@@ -47,7 +47,7 @@ async function cloudSignOut(){ try{ await cloudPushNow(); }catch(e){} try{ await
 
 /* ---------- merge ----------
    Each day in the history carries _t, the time it was last changed; the newer copy of a day wins whole,
-   so unticking on one phone isn't undone by an older copy from another. Tasks, rewards and trackers are
+   so unticking on one phone isn't undone by an older copy from another. Tasks, rewards, trackers and experiments are
    merged by id, with the newer state's version winning and deleted ids (S.removed) staying deleted. */
 function mergeById(a, b, preferB, removed, prefix){
   const out = new Map();
@@ -71,6 +71,7 @@ function mergeStates(local, remote){
     base.tasks = mergeById(other.tasks, base.tasks, true, removed);
     base.rewards = mergeById(other.rewards, base.rewards, true, removed);
     base.trackers = mergeById(other.trackers, base.trackers, true, removed, "trk:");
+    base.experiments = mergeById(other.experiments, base.experiments, true, removed, "exp:");
   }
   const pt = new Set((base.purchases||[]).map(p=>p.t)); for(const p of (other.purchases||[])) if(!pt.has(p.t)) base.purchases.push(p);
   base.reports = Object.assign({}, other.reports||{}, base.reports||{});

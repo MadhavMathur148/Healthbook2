@@ -38,6 +38,8 @@ That's the whole point. Not "you missed a day" — but *this is the thing to pro
 | **It finds real connections** | Drawn from 90 days, not 30, with a statistical bar to clear — so you get patterns, not coincidences. |
 | **It gives your doctor a page** | A clean monthly PDF of your own numbers. Built by arithmetic on your phone. No AI anywhere near it. |
 | **It works offline** | No account needed. Everything runs on your phone. An account only adds backup and a second device. |
+| **It listens to your body** | After a bad night by your own standards, it offers an easy day: only Easy dailies count, and streaks on the rest pause instead of breaking. |
+| **It lets you test things** | Try one change for 7, 14 or 21 days and get an honest before-and-during answer on the numbers you care about. Then keep it or drop it. |
 | **It's quiet** | Reminders skip days you've already finished the task. Nothing nags you about something you did. |
 
 ## Install
@@ -69,6 +71,14 @@ Weekends are shaded. Your goal line is labelled. Faded bars are days you missed.
 One question at a time, in plain words. "What is it?" "Which days?" "Remind me." Tap a suggestion if you can't think of one. Everything clever is behind **More options** — including making a habit tick itself when your water hits 8.
 
 <img src="docs/09-editor.png" width="30%"> <img src="docs/10-editor-more.png" width="30%"> <img src="docs/08-tasks.png" width="30%">
+
+### Easy days — for when your body says no
+
+If last night's sleep, HRV or resting heart rate is clearly off *your own* last 30 days, Today asks if you want an easy day. Say yes and only your Easy dailies are due; Medium and Hard ones pause, and their streaks wait instead of breaking. Rough for reasons a ring can't see? There's a quiet "make it an easy day" link at the bottom of Today too.
+
+### Experiments — find out if it actually works
+
+"Does cutting caffeine after 2 pm help my sleep?" Start an experiment, pick what it should change, and live with it for 7, 14 or 21 days. At the end you get the days during next to the same number of days before, with each number called plainly: clearly better, slightly different, no real change, or not enough readings. If you tie it to a daily, it also tells you how often you actually stuck to it. Keep it and it becomes a daily in one tap.
 
 ### Your monthly summary
 
