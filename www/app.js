@@ -65,20 +65,20 @@ function defaultTrackers(){
 /* The starter plan is written in the same plain-text rules format anyone can import. */
 const STARTER_RULES = `# Healthy basics
 Dailies:
-- No phone for the first 30 minutes — Water, light, get moving first. (morning, rest)
+- No phone for the first 30 minutes — Water, light, get moving first. (morning, rest, after I wake up)
 - Move for 20 minutes or more — A walk counts. (morning, move, medium)
-- Sunscreen (morning, care)
-- Protein with breakfast (morning, nourish)
+- Sunscreen (morning, care, after brushing my teeth)
+- Protein with breakfast (morning, nourish, when I sit down for breakfast)
 - 7,000+ steps (day, move, medium, when steps >= 7000)
 - Stand up at least once an hour (day, move)
-- Vegetables with lunch (day, nourish)
+- Vegetables with lunch (day, nourish, when I plan lunch)
 - 8 glasses of water (day, nourish, when water >= 8)
 - No caffeine after 2 pm (day, rest)
 - Log mood and stress (evening, care, when mood is logged, when stress is logged)
 - Time with people — Phones away. (evening, care)
-- Screens off an hour before bed (night, rest, medium)
-- Brush and floss (night, care)
-- Read for 10 minutes (night, rest)
+- Screens off an hour before bed (night, rest, medium, after dinner)
+- Brush and floss (night, care, before bed)
+- Read for 10 minutes (night, rest, once I'm in bed)
 - Lights out on time — Same wake time every day. (night, rest, medium)
 - Weigh-in (morning, move, sun, when weight is logged)
 - Look at the week in Trends (evening, care, sun)
@@ -86,7 +86,7 @@ Habits:
 - Workout (move, hard, 3 a week)
 - Cardio, 30 minutes (move, medium, 3 a week)
 - Hobby time (care, medium, 2 a week)
-- Junk food (nourish, slip)
+- Junk food (nourish, slip, when I'm stressed, instead have some fruit)
 To-dos:
 - Book a yearly checkup (care, hard, important)
 - Book a dental cleaning (care, medium)
@@ -125,6 +125,10 @@ function cleanTask(t){
     t.auto = Array.isArray(t.auto) ? t.auto.filter(c=>c && SAFE_ID.test(String(c.t||"")) && ["set","gte","lte"].includes(c.op)).map(c=>({t:c.t, op:c.op, v:c.op==="set"?null:Number(c.v)})).filter(c=>c.op==="set"||Number.isFinite(c.v)) : null;
     if(t.auto && !t.auto.length) t.auto = null;
   }
+  /* The if-then plan: when this happens, I'll do it. For slips, the replacement too. */
+  const line = v=>typeof v==="string" ? v.replace(/\s+/g," ").trim().slice(0,60) : "";
+  if(t.type!=="todo"){ t.cue = line(t.cue); if(!t.cue) delete t.cue; }
+  if(t.type==="habit"){ t.swap = line(t.swap); if(!t.swap) delete t.swap; }
   if(t.type==="habit"){ if(!["good","bad","both"].includes(t.kind)) t.kind = "good"; t.period = t.period==="day" ? "day" : "week"; const n = Number(t.target); t.target = Number.isFinite(n) && n>0 ? Math.round(n) : null; }
   if(t.type==="todo"){ t.done = !!t.done; t.star = !!t.star; t.due = typeof t.due==="string" && /^\d{4}-\d{2}-\d{2}$/.test(t.due) ? t.due : null; }
   return t;
@@ -250,9 +254,35 @@ function totals(){
 function levelOf(xp){ let lvl = 1, need = 100, rem = xp; while(rem >= need){ rem -= need; lvl++; need = 100 + (lvl-1)*25; } return {lvl, into:rem, need}; }
 function revoke(k, key){ const x = day(k).x; if(x){ delete x[key]; } tidy(k); }
 let pendingLevel = null;
+/* ---- feedback: small, fast rewards right where you tapped ---- */
+let lastPt = null;
+document.addEventListener("pointerdown", e=>{ lastPt = {x:e.clientX, y:e.clientY}; }, true);
+const calm = ()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+function floatXP(text, color){
+  const el = document.createElement("div"); el.className = "floatxp"; el.textContent = text;
+  if(color) el.style.color = color;
+  const p = lastPt || {x:innerWidth/2, y:innerHeight*.6};
+  el.style.left = Math.max(40, Math.min(innerWidth-40, p.x))+"px"; el.style.top = (p.y-18)+"px";
+  document.body.appendChild(el); setTimeout(()=>el.remove(), 1100);
+}
+function confetti(n, ms){
+  if(calm()) return;
+  const cv = document.createElement("canvas"); cv.className = "confetti"; document.body.appendChild(cv);
+  const g = cv.getContext("2d"), dpr = Math.min(2,devicePixelRatio||1); cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; g.scale(dpr,dpr);
+  const cs = getComputedStyle(document.documentElement), cols = ["--blue","--red","--yellow","--green"].map(v=>cs.getPropertyValue(v).trim());
+  const o = lastPt || {x:innerWidth/2, y:innerHeight/2};
+  const P = Array.from({length:n},()=>({x:o.x, y:o.y, vx:(Math.random()-.5)*11, vy:-Math.random()*11-3, r:Math.random()*5+3, c:cols[Math.floor(Math.random()*4)], a:Math.random()*6, s:(Math.random()-.5)*.3}));
+  const t0 = performance.now();
+  const loop = ()=>{ const t = performance.now()-t0; g.clearRect(0,0,innerWidth,innerHeight); g.globalAlpha = Math.max(0, 1 - Math.max(0,t-ms*.6)/(ms*.4));
+    for(const p of P){ p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.s; g.save(); g.translate(p.x,p.y); g.rotate(p.a); g.fillStyle = p.c; g.fillRect(-p.r/2,-p.r/4,p.r,p.r/2); g.restore(); }
+    if(t < ms) requestAnimationFrame(loop); else cv.remove(); };
+  requestAnimationFrame(loop);
+}
+const MILESTONES = [3,7,14,21,30,50,75,100,150,200,365];
+let celebrate = [];   /* queued for right after the next render, so they land on the new screen */
 function afterXp(before, amount){
   const now = levelOf(totals().xp).lvl;
-  if(amount) toast(`+${amount} XP  ·  +${Math.ceil(amount/2)} coins`);
+  if(amount) floatXP(`+${amount} XP`);
   if(now > before) pendingLevel = now;
 }
 
@@ -275,14 +305,21 @@ function bestStreak(t){
   return best;
 }
 function rateOf(t, n){ let due = 0, done = 0; for(let i=0;i<n;i++){ const k = addDays(TODAY(),-i); if(k===TODAY() && !isDone(t,k)) continue; if(isDue(t,k)){ due++; if(isDone(t,k)) done++; } } return due ? done/due : null; }
+function ringFull(cat, k){ const l = dueToday(k).filter(x=>x.cat===cat); return l.length>0 && l.every(x=>isDone(x,k)); }
 function setDaily(t, k, on, auto){
   const d = sub(k,"d"), was = !!d[t.id];
   if(on === was) return;
+  const ringWas = ringFull(t.cat, k);
   const before = levelOf(totals().xp).lvl;
   if(on){ d[t.id] = true; if(auto) sub(k,"a")[t.id] = true; else if(S.hist[k].m) delete S.hist[k].m[t.id];
     const st = streakOf(t,k), amt = XP_DAILY[t.diff||1] + Math.min(5, Math.floor(st/7));
     sub(k,"x")["d:"+t.id] = amt; afterXp(before, amt);
   } else { delete d[t.id]; if(S.hist[k].a && S.hist[k].a[t.id]){ delete S.hist[k].a[t.id]; if(!auto) sub(k,"m")[t.id] = true; } revoke(k,"d:"+t.id); }
+  if(on && !auto && k===TODAY()){
+    if(!ringWas && ringFull(t.cat,k)) celebrate.push({ring:t.cat});
+    const st = streakOf(t,k); if(MILESTONES.includes(st)) celebrate.push({streak:st, title:t.title});
+    celebrate.push({pop:t.id});
+  }
   checkPerfect(k); tidy(k); save();
   if(t.remind && k===TODAY()) queueReminders();
 }
@@ -290,7 +327,7 @@ function dueToday(k){ return dailies().filter(t=>isDue(t,k)); }
 function checkPerfect(k){
   const due = dueToday(k); if(!due.length) return;
   const all = due.every(t=>isDone(t,k)), has = !!(S.hist[k] && S.hist[k].x && S.hist[k].x.perfect);
-  if(all && !has){ const before = levelOf(totals().xp).lvl; sub(k,"x").perfect = XP_PERFECT; afterXp(before, 0); toast(`Perfect day · +${XP_PERFECT} XP`); }
+  if(all && !has){ const before = levelOf(totals().xp).lvl; sub(k,"x").perfect = XP_PERFECT; afterXp(before, 0); celebrate.push({perfect:true}); }
   if(!all && has){ revoke(k,"perfect"); }
 }
 function habitCount(t, k, dir){ const h = S.hist[k] && S.hist[k].h && S.hist[k].h[t.id]; return h ? (h[dir]||0) : 0; }
@@ -379,17 +416,47 @@ const ICON = {
   plus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`
 };
 
+/* ================= if-then plans ================= */
+const capFirst = s=>s ? s.charAt(0).toUpperCase()+s.slice(1) : "";
+const CUE_EX = ["After I wake up","After my morning coffee","After brushing my teeth","When I get home","After lunch","Before bed"];
+const TRIG_EX = ["When I'm bored","When I'm stressed","When I'm tired","After dinner","When I'm in bed with my phone"];
+/* Plans that only say what you won't do tend to backfire, so a swap has to be something you do. */
+const isNegation = s=>/^(no|not|don'?t|do not|never|stop|avoid|skip|quit|won'?t|will not)\b/i.test(String(s||"").trim());
+function planLine(t){
+  if(!t.cue) return "";
+  if(t.type==="habit" && t.kind==="bad") return t.swap ? `${capFirst(t.cue)} → ${t.swap}` : capFirst(t.cue);
+  return capFirst(t.cue);
+}
+
 /* ================= view: Today ================= */
 let view = "today", logDay = null, trendRange = 30, taskSeg = "daily";
 function header(title, sub, right){
   return `<div class="title"><span class="date">${esc(sub)}</span><div class="title-row"><h1>${esc(title)}</h1>${right||""}</div></div>`;
 }
+const RING_AT = {};   /* where each ring was last drawn, so a tick animates from there */
 function ringsSVG(k){
   const R = {move:61,fuel:46,rest:31,care:16}; let s = `<svg class="rings" viewBox="0 0 150 150" role="img" aria-label="Today's dailies by category">`;
   const due = dueToday(k);
   for(const c of CAT_ORDER){ const r = R[c], C = 2*Math.PI*r, list = due.filter(t=>t.cat===c), p = list.length ? list.filter(t=>isDone(t,k)).length/list.length : 0;
-    s += `<circle class="tr" cx="75" cy="75" r="${r}" stroke="${CATS[c].c}"/><circle class="ar" cx="75" cy="75" r="${r}" stroke="${CATS[c].c}" style="color:${CATS[c].c}" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p)}" transform="rotate(-90 75 75)" stroke-opacity="${p?1:0}"/>`; }
+    const from = RING_AT[c]==null ? C : RING_AT[c], to = C*(1-p); RING_AT[c] = to;
+    s += `<circle class="tr" cx="75" cy="75" r="${r}" stroke="${CATS[c].c}"/><circle class="ar" data-ring="${c}" data-to="${to}" cx="75" cy="75" r="${r}" stroke="${CATS[c].c}" style="color:${CATS[c].c}" stroke-dasharray="${C}" stroke-dashoffset="${from}" transform="rotate(-90 75 75)" stroke-opacity="${p||from<C-0.5?1:0}"/>`; }
   return s+`</svg>`;
+}
+let XP_AT = null;
+function afterRender(){
+  /* rings and XP bar glide from their last position to the new one */
+  const bars = V.querySelectorAll(".ar[data-to]");
+  if(bars.length){ void V.offsetWidth; bars.forEach(a=>{ a.style.strokeDashoffset = a.dataset.to; if(Number(a.dataset.to) < Number(a.getAttribute("stroke-dasharray"))-0.5) a.setAttribute("stroke-opacity","1"); }); }
+  const xb = V.querySelector(".xpbar i[data-w]");
+  if(xb){ const w = xb.dataset.w; if(XP_AT!=null && XP_AT!==w){ xb.style.width = XP_AT; void xb.offsetWidth; } xb.style.width = w; XP_AT = w; }
+  const q = celebrate; celebrate = [];
+  for(const c of q){
+    if(c.pop) V.querySelectorAll(`[data-daily="${c.pop}"]`).forEach(x=>x.classList.add("pop"));
+    if(c.ring){ const a = V.querySelector(`.ar[data-ring="${c.ring}"]`); if(a) a.classList.add("closed");
+      setTimeout(()=>{ chime(); buzz(); floatXP(`${CATS[c.ring].name} ring closed`, CATS[c.ring].c); }, 380); }
+    if(c.streak) setTimeout(()=>toast(`${c.streak}-day streak · ${c.title}`), 700);
+    if(c.perfect) setTimeout(()=>{ confetti(90, 1900); chime(); buzz(); }, 450);
+  }
 }
 function liveBlock(){ const h = nowHour(); return BLOCKS.find(b=>b.id!=="any" && h>=b.from && h<b.to) || BLOCKS[0]; }
 function nextUp(k){
@@ -398,9 +465,12 @@ function nextUp(k){
   for(const b of order.slice(L).concat(order.slice(0,L)).concat([BLOCKS[4]])){ const t = due.find(x=>x.block===b.id); if(t) return t; }
   return due[0];
 }
+let NUDGE_ID = null;   /* only one "+ when" at a time: the next unplanned thing you haven't done */
 function dailyRow(t, k){
   const done = isDone(t,k), st = streakOf(t,k), cl = t.checklist||[], cld = cl.filter(c=>clDone(k,t.id,c.id)).length;
   const meta = [];
+  if(t.cue) meta.push(`<span class="cue">${esc(capFirst(t.cue))}</span>`);
+  else if(t.id===NUDGE_ID) meta.push(`<button class="addcue" data-edit="${t.id}" aria-label="Add when you'll do ${esc(t.title)}">+ when</button>`);
   if(st>=2) meta.push(`<span class="st">${ICON.flame}${st}</span>`);
   if(cl.length) meta.push(`${cld}/${cl.length}`);
   if(t.remind) meta.push(`⏰ ${t.remind}`);
@@ -409,12 +479,18 @@ function dailyRow(t, k){
 }
 function habitRow(t, k){
   const c = habitPeriodCount(t,k), neg = habitCount(t,k,"n"), tgt = t.target, p = tgt ? Math.min(1,c/tgt) : 0;
+  if(t.kind==="bad"){
+    /* A slip habit is beaten by doing the swap, so the swap is the big button and earns XP. */
+    const sw = habitCount(t,k,"u"), sub = t.swap ? `${t.cue?esc(capFirst(t.cue))+" → ":""}${esc(t.swap)}` : `<button class="addcue" data-edit="${t.id}">+ plan a swap</button>`;
+    const tally = [sw?`${sw} swap${sw===1?"":"s"}`:null, neg?`${neg} slip${neg===1?"":"s"}`:null].filter(Boolean).join(" · ");
+    return `<li class="row" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div data-open="${t.id}" style="cursor:pointer;min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${sub}${tally?`<span>${tally} today</span>`:""}</div></div><div class="hbtns">${t.swap?`<button class="act swap" data-habit="${t.id}" data-dir="u" aria-label="Did the swap: ${esc(t.swap)}">Swapped</button>`:""}<button class="act slip" data-habit="${t.id}" data-dir="n" aria-label="Log a slip: ${esc(t.title)}">Slipped</button></div></li>`;
+  }
   const right = [];
-  if(t.kind!=="bad") right.push(`<span class="hcount">${c}${tgt?`<small>/${tgt}</small>`:""}</span>`);
-  if(t.kind==="bad") right.push(`<span class="hcount">${neg}</span>`);
-  if(t.kind!=="good") right.push(`<button class="hb neg" data-habit="${t.id}" data-dir="n" aria-label="Log a slip: ${esc(t.title)}">−</button>`);
-  if(t.kind!=="bad") right.push(`<button class="hb" data-habit="${t.id}" data-dir="u" aria-label="Add one: ${esc(t.title)}">+</button>`);
-  return `<li class="row" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div data-open="${t.id}" style="cursor:pointer;min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${t.kind==="bad"?"Today":t.period==="week"?"This week":"Today"}${tgt?` · goal ${tgt}`:""}</div></div><div class="hbtns">${right.join("")}</div>${tgt&&t.kind!=="bad"?`<div class="mini"><i style="width:${p*100}%"></i></div>`:""}</li>`;
+  right.push(`<span class="hcount">${c}${tgt?`<small>/${tgt}</small>`:""}</span>`);
+  if(t.kind==="both") right.push(`<button class="hb neg" data-habit="${t.id}" data-dir="n" aria-label="Log a slip: ${esc(t.title)}">−</button>`);
+  right.push(`<button class="hb" data-habit="${t.id}" data-dir="u" aria-label="Add one: ${esc(t.title)}">+</button>`);
+  const when = t.cue ? `<span class="cue">${esc(capFirst(t.cue))}</span>` : "";
+  return `<li class="row" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div data-open="${t.id}" style="cursor:pointer;min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${when}<span>${t.period==="week"?"This week":"Today"}${tgt?` · goal ${tgt}`:""}</span></div></div><div class="hbtns">${right.join("")}</div>${tgt?`<div class="mini"><i style="width:${p*100}%"></i></div>`:""}</li>`;
 }
 function todoRow(t){
   const over = t.due && t.due < TODAY() && !t.done;
@@ -425,12 +501,13 @@ function quickChips(k){
 }
 function vToday(){
   const k = TODAY(), tot = totals(), L = levelOf(tot.xp), due = dueToday(k), done = due.filter(t=>isDone(t,k)).length, nu = nextUp(k);
+  NUDGE_ID = ((nu && !nu.cue) ? nu : due.find(t=>!t.cue && !isDone(t,k)) || {}).id || null;
   let h = header("Today", kdate(k).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"}));
-  h += `<div class="card prof"><div class="ava"><span>${L.lvl}</span></div><div style="min-width:0"><div class="pname">${esc(S.profile.name||"You")}</div><div class="plvl">Level ${L.lvl} · ${L.into} / ${L.need} XP</div><div class="xpbar"><i style="width:${L.into/L.need*100}%"></i></div></div><button class="coins" data-go="me" style="border:0;background:none;cursor:pointer" aria-label="${tot.coins} coins, open rewards"><i></i>${tot.coins}</button></div>`;
+  h += `<div class="card prof"><div class="ava"><span>${L.lvl}</span></div><div style="min-width:0"><div class="pname">${esc(S.profile.name||"You")}</div><div class="plvl">Level ${L.lvl} · ${L.into} / ${L.need} XP</div><div class="xpbar"><i data-w="${(L.into/L.need*100).toFixed(2)}%" style="width:${XP_AT||(L.into/L.need*100).toFixed(2)+"%"}"></i></div></div><button class="coins" data-go="me" style="border:0;background:none;cursor:pointer" aria-label="${tot.coins} coins, open rewards"><i></i>${tot.coins}</button></div>`;
   if(window.todayLabHTML) h += todayLabHTML(k);
   h += `<div class="card"><div class="summary">${ringsSVG(k)}<div class="rlist">`;
   for(const c of CAT_ORDER){ const list = due.filter(t=>t.cat===c); h += `<div class="rrow"><span class="nm"><i style="background:${CATS[c].c};--c:${CATS[c].c}"></i>${CATS[c].name}</span><span class="v" style="color:${CATS[c].c}">${list.filter(t=>isDone(t,k)).length}<small>/${list.length}</small></span></div>`; }
-  h += `</div></div><div class="upnext">${nu?`<span class="ic" style="background:${CATS[nu.cat].c};--c:${CATS[nu.cat].c}">${ICON[nu.cat]}</span><div style="flex:1;min-width:0"><div class="lbl">Up next</div><div class="tx">${esc(nu.title)}</div></div><input type="checkbox" class="cb" style="--c:${CATS[nu.cat].c}" data-daily="${nu.id}" aria-label="Done: ${esc(nu.title)}">`:`<span class="ic" style="background:var(--green);--c:var(--green)">${ICON.done}</span><div><div class="lbl">Today</div><div class="tx">${due.length?"Every daily done. Rest.":"Nothing scheduled today."}</div></div>`}</div></div>`;
+  h += `</div></div><div class="upnext">${nu?`<span class="ic" style="background:${CATS[nu.cat].c};--c:${CATS[nu.cat].c}">${ICON[nu.cat]}</span><div style="flex:1;min-width:0"><div class="lbl">${nu.cue?esc(capFirst(nu.cue)):"Up next"}</div><div class="tx">${esc(nu.title)}</div></div><input type="checkbox" class="cb" style="--c:${CATS[nu.cat].c}" data-daily="${nu.id}" aria-label="Done: ${esc(nu.title)}">`:`<span class="ic" style="background:var(--green);--c:var(--green)">${ICON.done}</span><div><div class="lbl">Today</div><div class="tx">${due.length?"Every daily done. Rest.":"Nothing scheduled today."}</div></div>`}</div></div>`;
   if(due.length && done===due.length) h += `<div class="perfect">${ICON.done.replace('stroke="#fff"','stroke="var(--green)"').replace("<svg ",'<svg width="22" height="22" ')}Perfect day. Every daily done.</div>`;
   h += `<div class="group"><div class="gh"><h2>Log</h2><button class="meta" data-go="log">All</button></div>${quickChips(k)}</div>`;
   const live = liveBlock();
@@ -629,10 +706,10 @@ function vTasks(){
   h += `<div class="seg" role="group" aria-label="Type">${SEGS.map(([id,n])=>`<button data-seg="${id}" aria-pressed="${taskSeg===id}">${n}</button>`).join("")}</div>`;
   if(taskSeg==="daily"){
     for(const b of BLOCKS){ const list = S.tasks.filter(t=>t.type==="daily" && t.block===b.id && !t.archived); if(!list.length) continue;
-      h += `<div class="group"><div class="cap">${b.name}</div><ul class="list">${list.map(t=>`<li class="row plain tap" data-edit="${t.id}" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${t.days.length===7?"Every day":t.days.map(d=>DOW_LONG[d].slice(0,3)).join(", ")} · ${DIFF[t.diff||1]}${t.remind?` · ⏰ ${t.remind}`:""}${t.auto&&t.auto.length?" · auto":""}</div></div><span class="chev">›</span></li>`).join("")}</ul></div>`; }
+      h += `<div class="group"><div class="cap">${b.name}</div><ul class="list">${list.map(t=>`<li class="row plain tap" data-edit="${t.id}" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${t.cue?`<span class="cue">${esc(capFirst(t.cue))}</span>`:""}${t.days.length===7?"Every day":t.days.map(d=>DOW_LONG[d].slice(0,3)).join(", ")} · ${DIFF[t.diff||1]}${t.remind?` · ⏰ ${t.remind}`:""}${t.auto&&t.auto.length?" · auto":""}</div></div><span class="chev">›</span></li>`).join("")}</ul></div>`; }
   } else if(taskSeg==="habit"){
     const list = S.tasks.filter(t=>t.type==="habit" && !t.archived);
-    h += list.length ? `<ul class="list">${list.map(t=>`<li class="row plain tap" data-edit="${t.id}" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${t.kind==="good"?"Good":t.kind==="bad"?"Slip tracker":"Both"}${t.target?` · ${t.target} a ${t.period}`:""} · ${DIFF[t.diff||1]}</div></div><span class="chev">›</span></li>`).join("")}</ul>` : `<div class="card empty">No habits yet.</div>`;
+    h += list.length ? `<ul class="list">${list.map(t=>`<li class="row plain tap" data-edit="${t.id}" style="--c:${CATS[t.cat].c};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.title)}</span><div class="rs">${t.cue?`<span class="cue">${esc(planLine(t))}</span>`:""}${t.kind==="good"?"Do more":t.kind==="bad"?"Do less":"Both"}${t.target?` · ${t.target} a ${t.period}`:""} · ${DIFF[t.diff||1]}</div></div><span class="chev">›</span></li>`).join("")}</ul>` : `<div class="card empty">No habits yet.</div>`;
   } else if(taskSeg==="todo"){
     const open = S.tasks.filter(t=>t.type==="todo" && !t.done && !t.archived), done = S.tasks.filter(t=>t.type==="todo" && t.done && !t.archived);
     h += open.length ? `<ul class="list">${open.map(todoRow).join("")}</ul>` : `<div class="card empty">Nothing on your list.</div>`;
@@ -685,7 +762,9 @@ function render(keep){
   if(view==="tasks"){ if(!fab){ fab = document.createElement("button"); fab.id = "fab"; fab.className = "fab"; fab.setAttribute("aria-label","Add"); fab.innerHTML = ICON.plus; document.body.appendChild(fab); fab.addEventListener("click", ()=>{ if(taskSeg==="reward") editReward(null); else if(taskSeg==="tracker") editTracker(null); else editTask(null, taskSeg); }); } }
   else if(fab) fab.remove();
   if(keep) scrollTo(0,y);
-  if(pendingLevel) showLevelUp();
+  const busy = celebrate.some(c=>c.ring||c.perfect);
+  afterRender();
+  if(pendingLevel) setTimeout(showLevelUp, busy ? 1400 : 0);
 }
 function go(v){ view = v; if(v==="log" && !logDay) logDay = TODAY(); render(); scrollTo(0,0); }
 
@@ -710,6 +789,10 @@ function openDetail(id){
   const t = S.tasks.find(x=>x.id===id); if(!t) return; const k = TODAY();
   let h = `<span class="grab"></span><div class="shead"><button data-s="cancel">Close</button><h3>${t.type==="daily"?"Daily":t.type==="habit"?"Habit":"To-do"}</h3><button class="r" data-s="edit">Edit</button></div>`;
   h += `<div class="card" style="width:100%;--c:${CATS[t.cat].c}"><div style="display:flex;gap:10px;align-items:center"><span class="dot"></span><b style="font-size:19px">${esc(t.title)}</b></div>${t.notes?`<p class="hint" style="margin-top:8px;font-size:15px">${esc(t.notes)}</p>`:""}</div>`;
+  if(t.type!=="todo"){
+    if(t.cue && !(t.kind==="bad" && !t.swap)) h += `<div class="card plan" style="width:100%"><span class="lab-tag" style="--c:${CATS[t.cat].c}">Your plan</span><p>${t.kind==="bad" ? `${esc(capFirst(t.cue))}, I'll ${esc(t.swap)} instead.` : `${esc(capFirst(t.cue))}, I'll ${esc(t.title.charAt(0).toLowerCase()+t.title.slice(1))}.`}</p></div>`;
+    else h += `<button class="card plan nudge" data-s="edit" style="width:100%"><span class="lab-tag" style="--c:var(--blue)">Make it stick</span><p>${t.kind==="bad" ? "Pick what sets it off, and what you'll do instead." : "Tie it to something you already do."}</p><span class="hint">Plans like this make habits far more likely to stick.</span></button>`;
+  }
   if((t.checklist||[]).length){ h += `<ul class="list" style="width:100%">${t.checklist.map(c=>{ const on = t.type==="todo" ? !!c.done : clDone(k,t.id,c.id); return `<li class="row" style="--c:${CATS[t.cat].c}"><input type="checkbox" class="cb" data-cl="${c.id}" ${on?"checked":""} aria-label="${esc(c.text)}"><span class="rt">${esc(c.text)}</span><span></span></li>`; }).join("")}</ul>`; }
   if(t.type==="daily"){ h += `<div class="tiles" style="width:100%"><div class="tile" style="--c:var(--red)"><span class="tn">Streak</span><span class="tv">${streakOf(t)}<small> days</small></span><span class="ts">Best ${bestStreak(t)}</span></div><div class="tile" style="--c:var(--green)"><span class="tn">Last 30 days</span><span class="tv">${(()=>{const r = rateOf(t,30); return r==null?"–":Math.round(r*100)+"%";})()}</span><span class="ts">${t.days.length===7?"Every day":t.days.map(d=>DOW_LONG[d].slice(0,3)).join(", ")}</span></div></div>`;
     if(!isDone(t,k)) h += `<button class="btn" data-complete="1">Mark done · +${XP_DAILY[t.diff||1]} XP</button>`; else h += `<button class="btn sec" data-uncomplete="1">Mark not done</button>`; }
@@ -734,16 +817,31 @@ function openDetail(id){
 /* ---- task editor ---- */
 function editTask(id, type){
   const t = id ? S.tasks.find(x=>x.id===id) : null; type = t ? t.type : type;
-  const f = t ? JSON.parse(JSON.stringify(t)) : {type, title:"", notes:"", cat:"care", diff:1, days:[0,1,2,3,4,5,6], block:liveBlock().id, remind:null, checklist:[], auto:null, kind:"good", target:null, period:"week", due:null, star:false};
+  const f = t ? JSON.parse(JSON.stringify(t)) : {type, title:"", notes:"", cat:"care", diff:1, days:[0,1,2,3,4,5,6], block:liveBlock().id, remind:null, checklist:[], auto:null, kind:"good", target:null, period:"week", due:null, star:false, cue:"", swap:""};
+  f.cue = f.cue||""; f.swap = f.swap||"";
   const nm = {daily:"Daily",habit:"Habit",todo:"To-do"}[type];
   const EX = {daily:["Drink water","Walk 20 minutes","Read before bed","Stretch","Take vitamins"],
               habit:["Glass of water","Push-ups","Snack","Cigarette","Flight of stairs"],
               todo:["Book dentist","Buy groceries","Call mum","Renew gym pass"]};
+  const planHTML = ()=>{
+    if(type==="todo") return "";
+    if(type==="habit" && f.kind==="bad"){
+      let h = `<div class="fld"><label for="f-cue">What sets it off?</label><input class="tin" id="f-cue" value="${esc(f.cue)}" placeholder="When I'm bored" maxlength="60" autocomplete="off">`;
+      if(!f.cue) h += `<div class="chips">${TRIG_EX.map(x=>`<button type="button" class="chip" data-cue="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+      h += `</div><div class="fld"><label for="f-swap">What will you do instead?</label><input class="tin" id="f-swap" value="${esc(f.swap)}" placeholder="Go for a 5-minute walk" maxlength="60" autocomplete="off">`;
+      h += isNegation(f.swap) ? `<p class="hint warn">Say what you'll do, not what you won't. "Don't" plans tend to backfire.</p>` : `<p class="hint">Doing the swap earns XP. Slips never cost any.</p>`;
+      return h+`</div>`;
+    }
+    let h = `<div class="fld"><label for="f-cue">When will you do it?</label><input class="tin" id="f-cue" value="${esc(f.cue)}" placeholder="After my morning coffee" maxlength="60" autocomplete="off">`;
+    if(!f.cue) h += `<div class="chips">${CUE_EX.map(x=>`<button type="button" class="chip" data-cue="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+    return h + `<p class="hint">Tie it to something you already do.</p></div>`;
+  };
   const draw = ()=>{
     let h = shead(t?`Edit ${nm}`:`New ${nm}`, "Cancel", t?"Done":"Add") + `<div class="form">`;
     /* --- the only thing you must fill in --- */
     h += `<div class="fld big"><label for="f-title">What is it?</label><input class="tin xl" id="f-title" value="${esc(f.title)}" placeholder="${type==="habit"?"Glass of water":type==="todo"?"Book dentist":"Drink water"}" maxlength="120" autocomplete="off"></div>`;
     if(!t && !f.title) h += `<div class="chips">${EX[type].map(x=>`<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+    if(type==="daily") h += planHTML();
     h += `<div class="fld"><span class="lab">What kind of thing?</span>${segHTML("cat", CAT_ORDER.map(c=>[c,CATS[c].name.replace(" & Care",""),CATS[c].c]), f.cat, "cats")}</div>`;
 
     if(type==="daily"){
@@ -754,8 +852,8 @@ function editTask(id, type){
       h += `<div class="fld"><span class="lab">Remind me</span><div class="two"><input class="tin" type="time" id="f-remind" value="${f.remind||""}"><button type="button" class="btn sec" data-clearrem="1">${f.remind?"Turn off":"No reminder"}</button></div></div>`;
     }
     if(type==="habit"){
-      h += `<div class="fld"><span class="lab">Is this a good thing or a slip?</span>${segHTML("kind", [["good","Good"],["bad","Slip"],["both","Both"]], f.kind)}</div>`;
-      h += `<p class="hint">Slips never cost XP.</p>`;
+      h += `<div class="fld"><span class="lab">Something to do more, or less?</span>${segHTML("kind", [["good","Do more"],["bad","Do less"],["both","Both"]], f.kind)}</div>`;
+      h += planHTML();
     }
     if(type==="todo"){
       h += `<div class="fld"><label for="f-due">Finish it by</label><input class="tin" type="date" id="f-due" value="${f.due||""}"></div>`;
@@ -787,6 +885,7 @@ function editTask(id, type){
   let confirmDel = false, more = false;
   const has = id=>!!sheet.querySelector("#"+id);
   const grab = ()=>{ f.title = val("f-title").trim(); if(has("f-notes")) f.notes = val("f-notes").trim();
+    if(has("f-cue")) f.cue = val("f-cue").trim(); if(has("f-swap")) f.swap = val("f-swap").trim();
     if(type==="daily"){ if(has("f-remind")) f.remind = val("f-remind")||null;
       if(has("f-auto")){ const at = val("f-auto"), op = val("f-autoop"), v = num(val("f-autov")); const rest = (f.auto||[]).slice(1); f.auto = at ? [{t:at, op, v:op==="set"?null:v}].concat(rest) : (rest.length?rest:null); } }
     if(type==="habit" && has("f-target")){ f.target = num(val("f-target")); }
@@ -796,8 +895,11 @@ function editTask(id, type){
   const redraw = ()=>{ grab(); const st = sheet.querySelector(".sheet").scrollTop; sheet.querySelector(".sheet").innerHTML = draw(); sheet.querySelector(".sheet").scrollTop = st; };
   openSheet(draw(), b=>{
     const d = b.dataset;
+    if(d.pick==="kind"){ pickIn(b); grab(); redraw(); return; }
     if(d.pick){ pickIn(b); return; }
-    if(d.ex){ grab(); f.title = d.ex; redraw(); return; }
+    /* redraw() re-reads the inputs, so a tapped suggestion goes into the input itself */
+    if(d.ex){ sheet.querySelector("#f-title").value = d.ex; redraw(); return; }
+    if(d.cue){ sheet.querySelector("#f-cue").value = d.cue; redraw(); const n = sheet.querySelector(f.kind==="bad"&&type==="habit"?"#f-swap":"#f-cue"); if(n && f.kind==="bad") n.focus(); return; }
     if(d.more){ grab(); more = !more; redraw(); return; }
     if(d.freq){ grab(); f.days = d.freq==="all" ? [0,1,2,3,4,5,6] : (f.days.length===7 ? [1,2,3,4,5] : f.days); redraw(); return; }
     if(d.dow!=null){ const i = Number(d.dow); grab(); f.days = f.days.includes(i) ? f.days.filter(x=>x!==i) : f.days.concat(i).sort(); b.setAttribute("aria-pressed", String(f.days.includes(i))); return; }
@@ -809,10 +911,14 @@ function editTask(id, type){
     if(d.move){ const i = S.tasks.indexOf(t), dir = Number(d.move); let j = i+dir; while(j>=0 && j<S.tasks.length && (S.tasks[j].type!==t.type || (t.type==="daily" && S.tasks[j].block!==t.block))) j += dir; if(j<0||j>=S.tasks.length) { toast(dir<0?"Already first":"Already last"); return; } S.tasks.splice(i,1); S.tasks.splice(j,0,t); save(); render(true); toast(dir<0?"Moved up":"Moved down"); return; }
     if(d.s==="save"){ grab(); if(!f.title){ sheet.querySelector("#f-title").focus(); toast("Add a title"); return; } if(type==="daily" && !f.days.length){ toast("Pick at least one day"); return; }
       f.checklist = f.checklist.filter(c=>c.text.trim());
-      if(t) Object.assign(t, f); else { f.id = uid(); f.created = TODAY(); if(type==="todo"){ f.done = false; f.doneDay = null; } S.tasks.push(f); }
+      if(type==="habit" && f.kind==="bad" && isNegation(f.swap)){ toast("Pick something to do instead"); sheet.querySelector("#f-swap").focus(); return; }
+      for(const k of ["cue","swap"]){ f[k] = String(f[k]||"").replace(/\s+/g," ").trim().slice(0,60); if(!f[k]) delete f[k]; }
+      if(type!=="habit" || f.kind!=="bad") delete f.swap;
+      if(t){ delete t.cue; delete t.swap; Object.assign(t, f); } else { f.id = uid(); f.created = TODAY(); if(type==="todo"){ f.done = false; f.doneDay = null; } S.tasks.push(f); }
       if(type==="daily"){ evalAuto(TODAY()); }
       save(); scheduleReminders(); closeSheet(); render(true); toast(t?"Saved":"Added"); }
   }, e=>{ if(e.target.id==="f-autoop"){ sheet.querySelector("#f-autov").hidden = e.target.value==="set"; } });
+  sheet.addEventListener("input", e=>{ if(e.target.id!=="f-swap") return; const h = e.target.parentElement.querySelector(".hint"); if(!h) return; const bad = isNegation(e.target.value); h.classList.toggle("warn", bad); h.textContent = bad ? "Say what you'll do, not what you won't. \"Don't\" plans tend to backfire." : "Doing the swap earns XP. Slips never cost any."; });
 }
 
 /* ---- reward editor ---- */
@@ -885,7 +991,7 @@ async function scheduleReminders(ask){
     for(let i=0;i<14;i++){ const k = addDays(today, i);
       for(const t of dailies()){ if(!t.remind || !t.days.includes(dowOf(k))) continue; if(isDone(t,k)) continue;
         const when = at(k, t.remind); if(when.getTime() <= now+30e3) continue;
-        list.push({id:hashId(t.id)+i, title:t.title, body:t.notes||"Open Healthbook to tick it off.", smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{tid:t.id}}); }
+        list.push({id:hashId(t.id)+i, title:t.title, body:t.cue ? capFirst(t.cue) : (t.notes||"Open Healthbook to tick it off."), smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{tid:t.id}}); }
       if(S.settings.logReminder){ const logged = logVal(k,"mood")!=null && logVal(k,"stress")!=null, when = at(k, S.settings.logReminder);
         if(!logged && when.getTime() > now+30e3) list.push({id:150000000+i, title:"Log your day", body:"Mood, stress, water, steps. Ten seconds.", smallIcon:"ic_stat_healthbook", channelId:"reminders", schedule:{at:when.toISOString(), allowWhileIdle:true}, extra:{go:"log"}}); }
     }
@@ -932,12 +1038,12 @@ const FORMAT_GUIDE = `Write one item per line under a heading.
 Put options in brackets at the end, separated by commas.
 
 Dailies:
-- Drink a glass of water (morning, nourish)
+- Drink a glass of water (morning, nourish, after I wake up)
 - Stretch 10 minutes — Notes go after a long dash (evening, move, medium, mon wed fri, 18:30)
 - 8 glasses of water (day, nourish, when water >= 8)
 Habits:
 - Workout (move, hard, 3 a week)
-- Junk food (nourish, slip)
+- Junk food (nourish, slip, when I'm stressed, instead have some fruit)
 To-dos:
 - Book a dental cleaning (care, important, 2026-12-01)
 Rewards:
@@ -953,6 +1059,8 @@ Days: mon tue wed thu fri sat sun, weekdays, weekends (default every day)
 Reminder: a time like 07:30 or 7:30 pm
 Auto-tick: when <tracker> >= / <= <number>, or when <tracker> is logged
 Habits: 3 a week, 2 a day, slip (tracked, never penalised), both
+Plan (the part that makes it stick): after my coffee, before bed, when I get home…
+Slip plan: when I'm bored, instead go for a walk
 To-dos: important, a due date like 2026-12-01
 Trackers: scale, hours, counter, number; target N, goal N, range 7-9; a unit; red, green, blue, yellow; higher/lower is better; on today`;
 const BLOCK_WORDS = {morning:"dawn",dawn:"dawn",early:"dawn",wake:"dawn","wake up":"dawn",day:"day",daytime:"day",afternoon:"day",midday:"day",noon:"day",lunch:"day",work:"day",evening:"eve",eve:"eve",dinner:"eve",night:"wind",bedtime:"wind",bed:"wind","before bed":"wind","wind-down":"wind","wind down":"wind",winddown:"wind",any:"any",anytime:"any","any time":"any",whenever:"any"};
@@ -1038,6 +1146,8 @@ function parseRules(text){
     if(r.sec==="habit") Object.assign(base, {kind:"good", target:null, period:"week"});
     if(r.sec==="todo") Object.assign(base, {due:null, done:false, doneDay:null, star:false, checklist:[]});
     for(const tag of tags){ const w = tag.toLowerCase().replace(/\s+/g," ").trim(); let m;
+      if(r.sec!=="todo" && /^(after|before|once|as soon as|when i|when i'm|if)\s+\S/.test(w) && !/(>=|=>|≥|<=|=<|≤|at least|at most|is logged|logged|is set)/.test(w)){ base.cue = tag.trim().slice(0,60); continue; }
+      if(r.sec==="habit" && (m = tag.trim().match(/^instead\s+(.+)$/i))){ base.swap = m[1].slice(0,60); continue; }
       if(CAT_WORDS[w]){ base.cat = CAT_WORDS[w]; explicitCat = true; continue; }
       if(w==="easy"){ base.diff = 1; continue; } if(w==="medium"){ base.diff = 2; continue; } if(w==="hard"){ base.diff = 3; continue; }
       if(r.sec==="daily"){
@@ -1094,9 +1204,9 @@ function rulesText(){
   const L = [`# ${S.profile.name ? S.profile.name+"'s" : "My"} Healthbook rules`, ""];
   const tname = id=>{ const t = trk(id); return t ? t.name.toLowerCase() : id; };
   const ds = S.tasks.filter(t=>t.type==="daily" && !t.archived);
-  if(ds.length){ L.push("Dailies:"); for(const t of ds){ const tg = [BLOCK_OUT[t.block]||"any time", CAT_OUT[t.cat]]; if(t.diff>1) tg.push(DIFF[t.diff].toLowerCase()); if(t.days.length<7) tg.push(t.days.map(d=>DOW_LONG[d].slice(0,3).toLowerCase()).join(" ")); if(t.remind) tg.push(t.remind); for(const c of (t.auto||[])) tg.push(c.op==="set" ? `when ${tname(c.t)} is logged` : `when ${tname(c.t)} ${c.op==="gte"?">=":"<="} ${c.v}`); L.push(`- ${t.title}${t.notes?` — ${t.notes}`:""} (${tg.join(", ")})`); } L.push(""); }
+  if(ds.length){ L.push("Dailies:"); for(const t of ds){ const tg = [BLOCK_OUT[t.block]||"any time", CAT_OUT[t.cat]]; if(t.diff>1) tg.push(DIFF[t.diff].toLowerCase()); if(t.days.length<7) tg.push(t.days.map(d=>DOW_LONG[d].slice(0,3).toLowerCase()).join(" ")); if(t.remind) tg.push(t.remind); if(t.cue) tg.push(t.cue); for(const c of (t.auto||[])) tg.push(c.op==="set" ? `when ${tname(c.t)} is logged` : `when ${tname(c.t)} ${c.op==="gte"?">=":"<="} ${c.v}`); L.push(`- ${t.title}${t.notes?` — ${t.notes}`:""} (${tg.join(", ")})`); } L.push(""); }
   const hs = S.tasks.filter(t=>t.type==="habit" && !t.archived);
-  if(hs.length){ L.push("Habits:"); for(const t of hs){ const tg = [CAT_OUT[t.cat]]; if(t.diff>1) tg.push(DIFF[t.diff].toLowerCase()); if(t.kind==="bad") tg.push("slip"); if(t.kind==="both") tg.push("both"); if(t.target) tg.push(`${t.target} a ${t.period}`); L.push(`- ${t.title}${t.notes?` — ${t.notes}`:""} (${tg.join(", ")})`); } L.push(""); }
+  if(hs.length){ L.push("Habits:"); for(const t of hs){ const tg = [CAT_OUT[t.cat]]; if(t.diff>1) tg.push(DIFF[t.diff].toLowerCase()); if(t.kind==="bad") tg.push("slip"); if(t.kind==="both") tg.push("both"); if(t.target) tg.push(`${t.target} a ${t.period}`); if(t.cue) tg.push(t.cue); if(t.swap) tg.push("instead "+t.swap); L.push(`- ${t.title}${t.notes?` — ${t.notes}`:""} (${tg.join(", ")})`); } L.push(""); }
   const td = S.tasks.filter(t=>t.type==="todo" && !t.done && !t.archived);
   if(td.length){ L.push("To-dos:"); for(const t of td){ const tg = [CAT_OUT[t.cat]]; if(t.diff>1) tg.push(DIFF[t.diff].toLowerCase()); if(t.star) tg.push("important"); if(t.due) tg.push(t.due); L.push(`- ${t.title}${t.notes?` — ${t.notes}`:""} (${tg.join(", ")})`); } L.push(""); }
   if(S.rewards.length){ L.push("Rewards:"); for(const r of S.rewards) L.push(`- ${r.title} (${r.cost})`); L.push(""); }
@@ -1191,7 +1301,10 @@ V.addEventListener("click", e=>{
   if(d.edit){ editTask(d.edit); return; }
   if(d.editreward){ editReward(d.editreward); return; }
   if(d.edittracker){ editTracker(d.edittracker); return; }
-  if(d.habit){ const t = S.tasks.find(x=>x.id===d.habit); tapHabit(t,k,d.dir,1); tick(); if(d.dir==="u") tone(1047,.15,.04); render(true); return; }
+  if(d.habit){ const t = S.tasks.find(x=>x.id===d.habit); tapHabit(t,k,d.dir,1); tick();
+    if(d.dir==="u") tone(1047,.15,.04);
+    else if(t.kind==="bad") setTimeout(()=>toast(t.swap ? `Logged. Next time: ${t.swap}` : "Logged. No XP lost."), 30);
+    render(true); return; }
   if(d.quick){ logDay = k; go("log"); setTimeout(()=>{ const el = document.getElementById("tr-"+d.quick); if(el) el.scrollIntoView({block:"center"}); }, 30); return; }
   const lk = logDay || k;
   if(d.scale){ const v = Number(d.v); setLogVal(lk, d.scale, logVal(lk,d.scale)===v?null:v); tick(); render(true); return; }

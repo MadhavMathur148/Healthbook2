@@ -32,6 +32,7 @@ That's the whole point. Not "you missed a day" — but *this is the thing to pro
 
 |  | |
 |---|---|
+| **It plans with you** | Every habit gets a *when*: "After my morning coffee." Every bad habit gets a trigger and a swap: "When I'm bored, I'll go for a walk instead." Doing the swap earns XP. Slips never cost any. |
 | **It's yours to shape** | Every habit, task, reward and tracker is one you wrote. Nothing is preset and nothing is locked. |
 | **It never punishes you** | You earn XP and levels for what you do. Miss a week and you lose nothing — the streak just starts again. |
 | **It compares you to you** | "7 hours is normal" is useless. "That's 50 minutes less than your usual" is the thing worth knowing. |

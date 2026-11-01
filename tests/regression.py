@@ -54,7 +54,7 @@ async def main():
         # 5. reminders
         r = await pg.evaluate("""(async()=>{ S.settings.reminders=true; const t=dailies().find(x=>x.remind); await scheduleReminders(false); const before=window.__scheduled.filter(n=>n.extra&&n.extra.tid===t.id).length;
           const k=TODAY(); setDaily(t,k,true); await scheduleReminders(false); const after=window.__scheduled.filter(n=>n.extra&&n.extra.tid===t.id);
-          const ids=window.__scheduled.map(n=>n.id); return {before, after:after.length, todaySkipped: !after.some(n=>new Date(n.schedule.at).toDateString()===new Date().toDateString()), unique: new Set(ids).size===ids.length, maxId: Math.max(...ids), fmt: (window.__scheduled.find(n=>n.schedule.at)||{schedule:{}}).schedule.at, monthly: window.__scheduled.some(n=>n.schedule.on&&n.schedule.on.day===1)}; })()""")
+          const ids=window.__scheduled.map(n=>n.id); return {before, after:after.length, todaySkipped: !after.some(n=>n.id===hashId(t.id))   /* id +0 is the reminder for the app's own today, which runs until the day-start hour */, unique: new Set(ids).size===ids.length, maxId: Math.max(...ids), fmt: (window.__scheduled.find(n=>n.schedule.at)||{schedule:{}}).schedule.at, monthly: window.__scheduled.some(n=>n.schedule.on&&n.schedule.on.day===1)}; })()""")
         check("reminder ids unique and fit in an int", r["unique"] and r["maxId"] < 2**31, r)
         check("reminder dates in the plugin's ISO format", bool(r["fmt"]) and r["fmt"].endswith("Z") and "." in r["fmt"], r)
         check("done daily skips today's reminder", r["todaySkipped"] and r["after"] <= r["before"], r)

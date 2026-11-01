@@ -24,16 +24,16 @@ function planFromAnswers(p){
   const d = l=>{ const t = l.split(" (")[0].split(" — ")[0].toLowerCase(); if(!seen.has(t)){ seen.add(t); D.push(l); } };
   const hb = l=>{ if(!Hb.includes(l)) Hb.push(l); };
   if(g.has("sleep") || !g.size){ d(`Up at ${t12(wake)} — Same time every day, weekends too. (morning, rest, medium)`); d(`No caffeine after 2 pm (day, rest)`); d(`Screens off by ${t12(off)} (night, rest, medium, ${off})`); d(`Lights out by ${t12(bed)} (night, rest, medium)`); }
-  if(g.has("screens")){ d(`No phone for the first 30 minutes (morning, rest)`); d(`Screens off by ${t12(off)} (night, rest, medium, ${off})`); hb(`Doomscrolling (rest, slip)`); }
-  if(g.has("water")) d(`Glass of water on waking (morning, nourish)`);
-  if(g.has("eat")){ d(`Protein with breakfast (morning, nourish)`); d(`Vegetables with lunch (day, nourish)`); d(`A piece of fruit (day, nourish)`); hb(`Junk food (nourish, slip)`); }
+  if(g.has("screens")){ d(`No phone for the first 30 minutes (morning, rest, after I wake up)`); d(`Screens off by ${t12(off)} (night, rest, medium, ${off})`); hb(`Doomscrolling (rest, slip, when I'm in bed with my phone, instead read a page)`); }
+  if(g.has("water")) d(`Glass of water on waking (morning, nourish, after I wake up)`);
+  if(g.has("eat")){ d(`Protein with breakfast (morning, nourish, when I sit down for breakfast)`); d(`Vegetables with lunch (day, nourish)`); d(`A piece of fruit (day, nourish)`); hb(`Junk food (nourish, slip, when I'm stressed, instead have some fruit)`); }
   if(g.has("strength")){ d(`Protein with every meal (day, nourish, medium)`); hb(`Strength session (move, hard, 3 a week)`); }
   if(g.has("move")){ d(`7,000+ steps (day, move, medium, when steps >= 7000)`); d(`Move for 20 minutes — A walk counts. (day, move, medium)`); d(`Stand up at least once an hour (day, move)`); hb(`Cardio, 30 minutes (move, medium, 3 a week)`); }
   d(`8 glasses of water (day, nourish, when water >= 8)`);
   if(g.has("stress")){ d(`10 quiet minutes, no phone — Walk, stretch or just sit. (evening, mind, medium)`); d(`Time with people — Phones away. (evening, mind)`); hb(`Time outdoors (mind, medium, 3 a week)`); }
-  if(g.has("routine")){ d(`Make your bed (morning, mind)`); d(`Plan tomorrow in 5 minutes (evening, mind)`); d(`Read for 10 minutes (night, rest)`); }
+  if(g.has("routine")){ d(`Make your bed (morning, mind, after I get up)`); d(`Plan tomorrow in 5 minutes (evening, mind, after dinner)`); d(`Read for 10 minutes (night, rest, once I'm in bed)`); }
   d(`Log mood and stress (evening, mind, when mood is logged, when stress is logged)`);
-  d(`Brush and floss (night, mind)`);
+  d(`Brush and floss (night, mind, before bed)`);
   if(p.weightKg || (p.devices||[]).includes("scale") || g.has("strength")) d(`Weigh-in (morning, move, sun, when weight is logged)`);
   d(`Look at the week in Trends (evening, mind, sun)`);
   hb(`Hobby time (mind, medium, 2 a week)`);

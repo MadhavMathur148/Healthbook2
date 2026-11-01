@@ -70,7 +70,7 @@ function meDevicesHTML(){
   const h = hcState(), on = h.connected;
   const types = HC_MAP.filter(m=>(h.granted||[]).includes(m[0])).map(m=>(trk(m[1])||{name:m[1]}).name);
   return `<div class="group"><div class="cap">Connected apps</div><div class="card form">
-    <div style="display:flex;gap:12px;align-items:center"><span class="ci" style="--c:var(--green);width:40px;height:40px;border-radius:12px;display:grid;place-content:center;background:var(--green);box-shadow:0 0 calc(14px*var(--ga)) color-mix(in srgb,var(--green) 55%,transparent);flex:none">${ICON.care}</span><div style="min-width:0"><b>Health Connect</b><div class="hint">${on?`Connected · synced ${typeof ago==="function"?ago(h.last):""}${types.length?` · ${esc(types.join(", "))}`:""}`:"Steps, sleep, heart rate, HRV and weight from most rings and watches."}</div></div></div>
+    <div style="display:flex;gap:12px;align-items:center"><span class="ci" style="--c:var(--green);width:40px;height:40px;border-radius:12px;display:grid;place-content:center;background:var(--green);flex:none">${ICON.care}</span><div style="min-width:0"><b>Health Connect</b><div class="hint">${on?`Connected · synced ${typeof ago==="function"?ago(h.last):""}${types.length?` · ${esc(types.join(", "))}`:""}`:"Steps, sleep, heart rate, HRV and weight from most rings and watches."}</div></div></div>
     ${HC ? (on ? `<div class="btns"><button class="btn" data-hc="sync">Sync now</button><button class="btn sec" data-hc="manage">Manage</button></div>` : `<button class="btn" data-hc="connect">Connect</button>`) : `<p class="hint">Available in the Android app.</p>`}
     <p class="hint">Read-only. Your own entries are never overwritten. Ring or watch missing? Turn on Health Connect in its app.</p>
   </div></div>`;
