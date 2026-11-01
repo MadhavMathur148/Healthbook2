@@ -138,9 +138,83 @@ function cleanTracker(t){
   if(!["up","down","range",null].includes(t.better??null)) t.better = null;
   for(const f of ["min","max","target","step","decimals"]){ if(t[f]!=null){ const n = Number(t[f]); t[f] = Number.isFinite(n) ? n : null; } }
   t.quick = !!t.quick;
+  for(const f of ["lo","hi","note"]) t[f] = typeof t[f]==="string" ? t[f].slice(0,80) : undefined;
   return t;
 }
+/* ================= untrusted input =================
+   Everything that arrives from outside (a backup file, a synced copy, a shared rules file) passes
+   through here before the app touches it. Only known fields of the right type survive; anything
+   else is dropped. Text is still escaped when shown, and the page refuses to run outside scripts,
+   so this is the first of three locks, not the only one. */
+const isDay = k=>typeof k==="string" && /^\d{4}-\d{2}-\d{2}$/.test(k);
+const fin = (v, lo, hi)=>{ const n = Number(v); return typeof v!=="boolean" && v!==null && v!=="" && Number.isFinite(n) && n>=lo && n<=hi ? n : null; };
+const plainObj = o=>o && typeof o==="object" && !Array.isArray(o) && Object.getPrototypeOf(o)===Object.prototype;
+const ownKeys = o=>plainObj(o) ? Object.keys(o).filter(k=>k!=="__proto__" && k!=="constructor" && k!=="prototype") : [];
+function cleanFlags(o){ const r = {}; for(const k of ownKeys(o)) if(SAFE_ID.test(k) && o[k]===true) r[k] = true; return r; }
+function cleanDay(d){
+  if(!plainObj(d)) return null; const r = {};
+  if(plainObj(d.l)){ r.l = {}; for(const k of ownKeys(d.l)){ const v = fin(d.l[k], -1e7, 1e7); if(SAFE_ID.test(k) && v!=null) r.l[k] = v; } }
+  for(const f of ["d","a","m"]) if(plainObj(d[f])) r[f] = cleanFlags(d[f]);
+  if(plainObj(d.h)){ r.h = {}; for(const k of ownKeys(d.h)){ const x = d.h[k]; if(SAFE_ID.test(k) && plainObj(x)) r.h[k] = {u:fin(x.u,0,1e4)||0, n:fin(x.n,0,1e4)||0}; } }
+  if(plainObj(d.x)){ r.x = {}; for(const k of ownKeys(d.x)){ const v = fin(d.x[k], 0, 1000); if(/^[a-z]{1,8}(:[A-Za-z0-9_-]{1,40})?$/.test(k) && v!=null) r.x[k] = v; } }
+  if(plainObj(d.c)){ r.c = {}; for(const k of ownKeys(d.c)) if(SAFE_ID.test(k)){ const f = cleanFlags(d.c[k]); if(Object.keys(f).length) r.c[k] = f; } }
+  if(plainObj(d.src)){ r.src = {}; for(const k of ownKeys(d.src)) if(SAFE_ID.test(k) && d.src[k]==="hc") r.src[k] = "hc"; }
+  if(d.easy===true) r.easy = true; if(d.easyNo===true) r.easyNo = true;
+  r._t = fin(d._t, 0, 1e14) || 0;
+  return r;
+}
+function cleanHist(h){ const r = {}; for(const k of ownKeys(h)) if(isDay(k)){ const d = cleanDay(h[k]); if(d) r[k] = d; } return r; }
+/* A saved summary is only ever data the app made itself, so anything that looks like markup
+   means it was tampered with. Drop it; the app rebuilds it from the logs. */
+function safeTree(v, depth){
+  if(depth > 8) return false;
+  if(v===null || typeof v==="boolean") return true;
+  if(typeof v==="number") return Number.isFinite(v);
+  if(typeof v==="string") return v.length <= 2000 && !/[<>`]|javascript:|data:/i.test(v);
+  if(Array.isArray(v)) return v.length <= 500 && v.every(x=>safeTree(x, depth+1));
+  if(plainObj(v)){ const ks = Object.keys(v); return ks.length <= 200 && ks.every(k=>k!=="__proto__" && k!=="constructor" && k.length<=60 && safeTree(v[k], depth+1)); }
+  return false;
+}
+function cleanReports(o){ const r = {}; for(const k of ownKeys(o)) if(/^\d{4}-\d{2}$/.test(k) && plainObj(o[k]) && safeTree(o[k],0)) r[k] = o[k]; return r; }
+function cleanProfile(p){
+  p = plainObj(p) ? p : {};
+  const str = (v,n)=>typeof v==="string" ? v.slice(0,n) : "";
+  const r = {name:str(p.name,60).trim()};
+  const by = fin(p.birthYear, 1900, new Date().getFullYear()); if(by!=null) r.birthYear = Math.round(by);
+  if(["male","female","other","unspecified"].includes(p.sex)) r.sex = p.sex;
+  r.units = p.units==="imperial" ? "imperial" : "metric";
+  const h = fin(p.heightCm, 50, 260); if(h!=null) r.heightCm = h;
+  const w = fin(p.weightKg, 20, 400); if(w!=null) r.weightKg = w;
+  r.goals = (Array.isArray(p.goals)?p.goals:[]).filter(g=>typeof g==="string" && SAFE_ID.test(g)).slice(0,10);
+  r.devices = (Array.isArray(p.devices)?p.devices:[]).filter(g=>typeof g==="string" && SAFE_ID.test(g)).slice(0,10);
+  r.wake = isHHMM(p.wake) ? p.wake : "07:00"; r.bed = isHHMM(p.bed) ? p.bed : "23:00";
+  return r;
+}
+function cleanSettings(x){
+  x = plainObj(x) ? x : {};
+  const r = {dayStart:[0,1,2,3,4,5].includes(x.dayStart) ? x.dayStart : 3,
+    sound:x.sound!==false, haptics:x.haptics!==false, reminders:x.reminders===true,
+    logReminder: x.logReminder===null ? null : isHHMM(x.logReminder) ? x.logReminder : "21:00",
+    theme:["system","light","dark","amoled"].includes(x.theme) ? x.theme : "system"};
+  if(plainObj(x.hc)) r.hc = {connected:x.hc.connected===true, last:fin(x.hc.last,0,1e14)||0, granted:(Array.isArray(x.hc.granted)?x.hc.granted:[]).filter(g=>typeof g==="string" && /^[A-Za-z]{1,40}$/.test(g))};
+  return r;
+}
+function cleanPurchases(a){ return (Array.isArray(a)?a:[]).filter(plainObj).map(p=>({t:fin(p.t,0,1e14)||0, day:isDay(p.day)?p.day:TODAY_RAW(), id:SAFE_ID.test(String(p.id||""))?p.id:"", title:String(p.title||"").slice(0,80), cost:fin(p.cost,0,1e6)||0})).slice(-5000); }
+function cleanRemoved(o){ const r = {}; for(const k of ownKeys(o)) if(/^(trk:|exp:)?[A-Za-z0-9_-]{1,40}$/.test(k)){ const v = fin(o[k],0,1e14); if(v!=null) r[k] = v; } return r; }
+
 function migrate(s){
+  if(!plainObj(s)) s = seed();
+  s.settings = cleanSettings(s.settings); s.profile = cleanProfile(s.profile);
+  s.hist = cleanHist(s.hist); s.reports = cleanReports(s.reports);
+  s.purchases = cleanPurchases(s.purchases); s.removed = cleanRemoved(s.removed);
+  s.tasks = Array.isArray(s.tasks) ? s.tasks.filter(plainObj) : []; s.trackers = Array.isArray(s.trackers) ? s.trackers.filter(plainObj) : []; s.rewards = Array.isArray(s.rewards) ? s.rewards.filter(plainObj) : [];
+  if(!isDay(s.created)) s.created = TODAY_RAW();
+  s.onboarded = s.onboarded===true || (s.onboarded===undefined ? undefined : false);
+  s.updatedAt = fin(s.updatedAt,0,1e14) || 0;
+  for(const k of Object.keys(s)) if(!["v","profile","settings","tasks","trackers","rewards","purchases","hist","created","onboarded","reports","removed","experiments","updatedAt","owner","pendingEmail"].includes(k)) delete s[k];
+  if(s.pendingEmail!=null && !(typeof s.pendingEmail==="string" && s.pendingEmail.length<=254 && /^[^\s<>"'`@]+@[^\s<>"'`@]+\.[^\s<>"'`@]+$/.test(s.pendingEmail))) s.pendingEmail = null;
+  if(s.owner!=null && !/^[0-9a-f-]{36}$/i.test(String(s.owner))) delete s.owner;
+
   s.settings = Object.assign({dayStart:3, sound:true, haptics:true, reminders:false, logReminder:"21:00", theme:"system"}, s.settings||{});
   s.profile = s.profile||{name:""};
   s.trackers = (s.trackers||[]).filter(t=>t.kind!=="bp"); if(s.onboarded===undefined) s.onboarded = (s.tasks||[]).length>0; s.tasks = s.tasks||[]; s.trackers = s.trackers||[]; s.rewards = s.rewards||[]; s.purchases = s.purchases||[]; s.hist = s.hist||{}; s.reports = s.reports||{};

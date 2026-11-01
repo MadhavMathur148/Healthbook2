@@ -1,0 +1,15 @@
+# Weekly check for security fixes in the app's libraries and the build tools.
+# Each update arrives as a pull request and must pass every security test before it can ship.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+    groups:
+      libraries: {patterns: ["*"]}
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+    groups:
+      build-tools: {patterns: ["*"]}
