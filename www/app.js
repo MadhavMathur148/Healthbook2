@@ -395,7 +395,7 @@ function trackerCard(t, k){
     h += tgt<=16 ? `<div class="drops">${Array.from({length:tgt},(_,i)=>`<button data-drop="${t.id}" data-n="${i+1}" aria-label="${i+1}">${dropSVG(i<n,c)}</button>`).join("")}</div>`
                  : `<div class="stepper"><button data-step="${t.id}" data-d="-1">−</button><span class="sv">${n}</span><button data-step="${t.id}" data-d="1">+</button></div>`; }
   else if(t.kind==="number") h += `<label class="inp"><input type="number" inputmode="decimal" step="any" data-num="${t.id}" value="${v??""}" placeholder="${esc(lastValue(t.id,k)??"Enter")}"><span>${esc(t.unit)}</span></label>`;
-  if(v!=null && S.hist[k] && S.hist[k].src && S.hist[k].src[t.id]==="hc") h += `<p class="hint">Synced from Health Connect · change it to override</p>`;
+  if(v!=null && S.hist[k] && S.hist[k].src && S.hist[k].src[t.id]==="hc") h += `<p class="hint">Synced · edit to change</p>`;
   const note = goalNote(t,v); if(note && t.kind!=="bp") h += `<p class="hint">${note}</p>`; else if(t.note && t.kind!=="bp") h += `<p class="hint">${esc(t.note)}</p>`;
   if(v!=null && t.kind!=="bp" && t.kind!=="number") h += `<button class="del" style="align-self:flex-start;padding:0" data-clear="${t.id}">Clear</button>`;
   return h+`</div>`;
@@ -407,7 +407,7 @@ function vLog(){
   let h = header("Log", "Quick entries · +2 XP each");
   h += `<div class="daynav"><button data-day="-1" ${k<=minK?"disabled":""} aria-label="Previous day">‹</button><span>${label}</span><button data-day="1" ${isT?"disabled":""} aria-label="Next day">›</button></div>`;
   for(const t of S.trackers) h += trackerCard(t,k);
-  h += `<p class="foot" style="text-align:center">Add, remove or change what you track in Tasks → Trackers.</p>`;
+  h += `<p class="foot" style="text-align:center">Edit trackers in Tasks → Trackers.</p>`;
   return h;
 }
 
@@ -466,20 +466,20 @@ function chartCaption(t, keys){
   const unit = t.kind==="scale" ? "/10" : t.unit ? " "+t.unit : "";
   const show = v=>(Math.abs(v)>=1000?Math.round(v).toLocaleString("en-IN"):Math.round(v*10)/10)+unit;
   if(goal!=null){ const hit = vals.filter(v=>v>=goal).length;
-    return `You hit ${show(goal)} on ${hit} of ${vals.length} logged days. Faded bars are the days you didn't.`; }
+    return `Hit ${show(goal)} on ${hit} of ${vals.length} days.`; }
   if(t.min!=null && t.max!=null){ const inb = vals.filter(v=>v>=t.min && v<=t.max).length;
-    return `Inside your ${show(t.min)}–${show(t.max)} range on ${inb} of ${vals.length} days — that's the shaded band.`; }
+    return `In range ${inb} of ${vals.length} days.`; }
   const half = Math.floor(vals.length/2), a = vals.slice(0,half), b = vals.slice(half);
   if(a.length>=2 && b.length>=2){ const d = b.reduce((x,y)=>x+y,0)/b.length - a.reduce((x,y)=>x+y,0)/a.length;
     const unitAbs = Math.abs(d);
-    if(unitAbs > Math.abs(avg)*0.08) return `Trending ${d>0?"up":"down"}: around ${show(unitAbs)} ${d>0?"higher":"lower"} lately than earlier in this range.`; }
+    if(unitAbs > Math.abs(avg)*0.08) return `Going ${d>0?"up":"down"} lately, by about ${show(unitAbs)}.`; }
   /* Nothing notable in the shape, so say something the big number doesn't already. */
   const lo = Math.min(...vals), hi = Math.max(...vals);
   let li = -1, hiI = -1;
   keys.forEach((k,i)=>{ const v = logVal(k,t.id); if(typeof v!=="number") return;
     if(li<0 || v<logVal(keys[li],t.id)) li=i; if(hiI<0 || v>logVal(keys[hiI],t.id)) hiI=i; });
   const best = t.better==="down" ? li : hiI;
-  return `Mostly between ${show(lo)} and ${show(hi)}. Your best day was ${fmtD(keys[best])}.`;
+  return `Usually ${show(lo)}–${show(hi)}. Best: ${fmtD(keys[best])}.`;
 }
 function niceRange(vals, pad){ let mn = Math.min(...vals), mx = Math.max(...vals); if(mn===mx){ mn -= pad; mx += pad; } const r = mx-mn; mn = Math.floor(mn - r*.15); mx = Math.ceil(mx + r*.15); return [mn, mx, [mn, Math.round((mn+mx)/2), mx]]; }
 function dayRate(k){ const due = dueToday(k); return due.length ? due.filter(t=>isDone(t,k)).length/due.length : null; }
@@ -493,9 +493,9 @@ function deltaTxt(cur, prev, unit, goodUp){
   const d = cur-prev;
   /* A change smaller than 3% of the value isn't a trend, it's noise — don't
      dress it up with an arrow. */
-  if(Math.abs(d) < Math.max(0.05, Math.abs(prev)*0.03)) return `<span class="delta">About the same as the previous ${trendRange} days</span>`;
+  if(Math.abs(d) < Math.max(0.05, Math.abs(prev)*0.03)) return `<span class="delta">Same as the last ${trendRange} days</span>`;
   const good = goodUp==null ? null : (d>0)===goodUp;
-  return `<span class="delta ${good==null?"":good?"ok":"bad"}">${d>0?"▲":"▼"} ${Math.abs(d).toLocaleString("en-IN",{maximumFractionDigits:1})}${unit} vs previous ${trendRange} days</span>`;
+  return `<span class="delta ${good==null?"":good?"ok":"bad"}">${d>0?"▲":"▼"} ${Math.abs(d).toLocaleString("en-IN",{maximumFractionDigits:1})}${unit} vs last ${trendRange} days</span>`;
 }
 function trackerTrend(t, keys, prev){
   const c = COLORS[t.color], has = keys.some(k=>logVal(k,t.id)!=null);
@@ -528,8 +528,8 @@ function vTrends(){
   h += `<div class="card field" style="--c:var(--green)"><div class="cap" style="padding:0">Dailies done</div><div class="tstat"><span class="big" style="color:var(--green)">${avg==null?"–":avg+"%"}<small> average</small></span>${deltaTxt(avg,pavg,"%",true)}</div>`;
   h += lineChart(keys,[{c:"var(--green)",get:k=>{const r = dayRate(k); return r==null?null:Math.round(r*100);}}],{min:0,max:100,ticks:[0,50,100],goal:80,bars:true,label:"Share of dailies done each day",tickFmt:v=>v+"%"});
   const full = keys.filter(k=>k!==TODAY() && dayRate(k)===1).length;
-  h += `<p class="ccap">Each bar is one day. ${full} full day${full===1?"":"s"} with everything ticked. Faded bars fell below your 80% line.</p>`;
-  h += `<div class="cap" style="padding:0;margin-top:10px">Last 17 weeks</div>${heatmap()}<p class="ccap">Darker squares are days you got more done. Left is oldest, bottom-right is today.</p></div>`;
+  h += `<p class="ccap">${full} perfect day${full===1?"":"s"}. Faded bars = under 80%.</p>`;
+  h += `<div class="cap" style="padding:0;margin-top:10px">Last 17 weeks</div>${heatmap()}<p class="ccap">Darker = more done. Today is bottom right.</p></div>`;
   const xpk = keys.map(k=>{ const x = S.hist[k] && S.hist[k].x; return x ? Object.values(x).reduce((a,b)=>a+b,0) : 0; }), xps = xpk.reduce((a,b)=>a+b,0);
   h += `<div class="tiles"><div class="tile" style="--c:var(--blue)"><span class="tn">XP earned</span><span class="tv">${xps.toLocaleString("en-IN")}</span><span class="ts">In this range.</span></div><div class="tile" style="--c:var(--red)"><span class="tn">Best streak now</span><span class="tv">${Math.max(0,...dailies().map(t=>streakOf(t)))}<small> days</small></span><span class="ts">${esc((dailies().slice().sort((a,b)=>streakOf(b)-streakOf(a))[0]||{}).title||"")}</span></div></div>`;
   for(const t of S.trackers) h += trackerTrend(t, keys, prev);
@@ -565,7 +565,7 @@ function vTasks(){
     h += S.rewards.length ? `<ul class="list">${S.rewards.map(r=>`<li class="row plain tap" data-editreward="${r.id}"><div style="min-width:0"><span class="rt">${esc(r.title)}</span><div class="rs">${r.cost} coins</div></div><span class="chev">›</span></li>`).join("")}</ul>` : `<div class="card empty">No rewards yet. Add things you'd like to earn.</div>`;
     h += `<p class="foot">Spend coins on these in the Me tab.</p>`;
   } else {
-    h += `<ul class="list">${S.trackers.map((t,i)=>`<li class="row plain tap" data-edittracker="${t.id}" style="--c:${COLORS[t.color]};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.name)}</span><div class="rs">${{scale:"1–10 scale",hours:"Hours",count:"Counter",number:"Number",bp:"Blood pressure"}[t.kind]}${t.kind!=="bp"&&t.kind!=="scale"?" · "+esc(t.unit):""}${t.quick?" · on Today":""}</div></div><span class="chev">›</span></li>`).join("")}</ul><p class="foot">Trackers appear in Log and Trends. Dailies can tick themselves from a tracker, like water or steps.</p>`;
+    h += `<ul class="list">${S.trackers.map((t,i)=>`<li class="row plain tap" data-edittracker="${t.id}" style="--c:${COLORS[t.color]};grid-template-columns:10px minmax(0,1fr) auto"><span class="dot"></span><div style="min-width:0"><span class="rt">${esc(t.name)}</span><div class="rs">${{scale:"1–10 scale",hours:"Hours",count:"Counter",number:"Number",bp:"Blood pressure"}[t.kind]}${t.kind!=="bp"&&t.kind!=="scale"?" · "+esc(t.unit):""}${t.quick?" · on Today":""}</div></div><span class="chev">›</span></li>`).join("")}</ul><p class="foot">Trackers show up in Log and Trends.</p>`;
   }
   return h;
 }
@@ -592,9 +592,9 @@ function vMe(){
     <div class="fld"><label for="set-logrem">Evening log reminder</label><input class="tin" id="set-logrem" type="time" value="${s.logReminder||""}" data-setting="logReminder"></div>
     <label class="switch"><span>Sounds</span><input type="checkbox" id="set-snd" data-setting="sound" ${s.sound?"checked":""}></label>
     <label class="switch"><span>Haptics</span><input type="checkbox" id="set-hap" data-setting="haptics" ${s.haptics?"checked":""}></label>
-    <p class="hint">Reminders use the times you set on each daily, plus a monthly-summary reminder on the 1st.</p>
+    <p class="hint">Uses each daily's reminder time, plus one on the 1st for your summary.</p>
   </div></div>`;
-  h += `<div class="group"><div class="cap">Backup</div><div class="card form"><div class="btns"><button class="btn" data-backup="export">Export backup</button><button class="btn sec" data-backup="import">Import</button></div><p class="hint">Export regularly and keep a copy somewhere safe, like your computer or cloud storage. Uninstalling the app deletes its data.</p><input type="file" id="importfile" accept="application/json,.json" hidden></div></div>`;
+  h += `<div class="group"><div class="cap">Backup</div><div class="card form"><div class="btns"><button class="btn" data-backup="export">Export backup</button><button class="btn sec" data-backup="import">Import</button></div><p class="hint">Export now and then. Uninstalling deletes your data.</p><input type="file" id="importfile" accept="application/json,.json" hidden></div></div>`;
   h += `<div class="group"><div class="card form"><button class="btn danger" data-reset="1">Reset everything</button></div><p class="foot" style="text-align:center">Healthbook ${esc(window.HB_VERSION||"")}· ${typeof cloudUser!=="undefined" && cloudUser ? "synced to your account" : "your data stays on this phone"} · <button class="linkbtn" data-privacy="1" style="font-size:13px;padding:0">Privacy policy</button></p></div>`;
   return h;
 }
@@ -679,7 +679,7 @@ function editTask(id, type){
     }
     if(type==="habit"){
       h += `<div class="fld"><span class="lab">Is this a good thing or a slip?</span>${segHTML("kind", [["good","Good"],["bad","Slip"],["both","Both"]], f.kind)}</div>`;
-      h += `<p class="hint">Slips never cost you XP. They're just there so you can see the pattern.</p>`;
+      h += `<p class="hint">Slips never cost XP.</p>`;
     }
     if(type==="todo"){
       h += `<div class="fld"><label for="f-due">Finish it by</label><input class="tin" type="date" id="f-due" value="${f.due||""}"></div>`;
@@ -697,7 +697,7 @@ function editTask(id, type){
         h += `<label class="switch"><span>Pin to the top of Today</span><input type="checkbox" id="f-star" ${f.star?"checked":""}></label>`;
       if(type==="daily"){
         const a = (f.auto&&f.auto[0])||null;
-        h += `<div class="fld"><span class="lab">Tick itself when…</span><div class="two"><select class="tin" id="f-auto"><option value="">Never — I'll tick it</option>${S.trackers.filter(x=>x.kind!=="bp").map(x=>`<option value="${x.id}" ${a&&a.t===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select><select class="tin" id="f-autoop"><option value="set" ${a&&a.op==="set"?"selected":""}>is logged</option><option value="gte" ${a&&a.op==="gte"?"selected":""}>reaches</option><option value="lte" ${a&&a.op==="lte"?"selected":""}>stays under</option></select></div><input class="tin" id="f-autov" type="number" inputmode="decimal" placeholder="Number" value="${a&&a.v!=null?a.v:""}" ${a&&a.op!=="set"?"":"hidden"}><p class="hint">Example: tick "Drink water" by itself once water reaches 8.</p>${f.auto&&f.auto.length>1?`<p class="hint">Plus ${f.auto.length-1} more condition${f.auto.length>2?"s":""} (kept).</p>`:""}</div>`;
+        h += `<div class="fld"><span class="lab">Tick itself when…</span><div class="two"><select class="tin" id="f-auto"><option value="">Never — I'll tick it</option>${S.trackers.filter(x=>x.kind!=="bp").map(x=>`<option value="${x.id}" ${a&&a.t===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select><select class="tin" id="f-autoop"><option value="set" ${a&&a.op==="set"?"selected":""}>is logged</option><option value="gte" ${a&&a.op==="gte"?"selected":""}>reaches</option><option value="lte" ${a&&a.op==="lte"?"selected":""}>stays under</option></select></div><input class="tin" id="f-autov" type="number" inputmode="decimal" placeholder="Number" value="${a&&a.v!=null?a.v:""}" ${a&&a.op!=="set"?"":"hidden"}><p class="hint">Example: tick "Drink water" when water hits 8.</p>${f.auto&&f.auto.length>1?`<p class="hint">Plus ${f.auto.length-1} more condition${f.auto.length>2?"s":""} (kept).</p>`:""}</div>`;
       }
       if(type!=="habit")
         h += `<div class="fld"><span class="lab">Steps (optional)</span><div class="cl">${f.checklist.map((c,i)=>`<div class="clrow"><input class="tin" data-clt="${i}" value="${esc(c.text)}" placeholder="Step ${i+1}"><button type="button" class="del" data-cldel="${i}" aria-label="Remove step">✕</button></div>`).join("")}<button type="button" class="btn sec" data-cladd="1">Add a step</button></div></div>`;
@@ -742,7 +742,7 @@ function editTask(id, type){
 /* ---- reward editor ---- */
 function editReward(id){
   const r = id ? S.rewards.find(x=>x.id===id) : null; let confirmDel = false;
-  const draw = ()=>shead(r?"Edit Reward":"New Reward","Cancel",r?"Done":"Add") + `<div class="form"><div class="fld"><label for="r-title">Reward</label><input class="tin" id="r-title" value="${esc(r?r.title:"")}" placeholder="e.g. Movie night"></div><div class="fld"><label for="r-cost">Cost in coins</label><input class="tin" id="r-cost" type="number" inputmode="numeric" min="1" value="${r?r.cost:50}"></div><p class="hint">A medium daily earns 5 coins. Price rewards so they feel earned.</p>${r?`<button class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete"}</button>`:""}</div>`;
+  const draw = ()=>shead(r?"Edit Reward":"New Reward","Cancel",r?"Done":"Add") + `<div class="form"><div class="fld"><label for="r-title">Reward</label><input class="tin" id="r-title" value="${esc(r?r.title:"")}" placeholder="e.g. Movie night"></div><div class="fld"><label for="r-cost">Cost in coins</label><input class="tin" id="r-cost" type="number" inputmode="numeric" min="1" value="${r?r.cost:50}"></div><p class="hint">A medium daily earns 5 coins.</p>${r?`<button class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete"}</button>`:""}</div>`;
   openSheet(draw(), b=>{ const d = b.dataset;
     if(d.s==="cancel") closeSheet();
     else if(d.delete){ if(!confirmDel){ confirmDel = true; b.textContent = "Tap again to delete"; return; } S.rewards = S.rewards.filter(x=>x.id!==r.id); S.removed[r.id] = Date.now(); save(); closeSheet(); render(true); }
@@ -771,7 +771,7 @@ function editTracker(id){
     if(f.kind==="scale") h += `<div class="two"><div class="fld"><label for="k-lo">1 means</label><input class="tin" id="k-lo" value="${esc(f.lo||"Low")}"></div><div class="fld"><label for="k-hi">10 means</label><input class="tin" id="k-hi" value="${esc(f.hi||"High")}"></div></div>`;
     h += `<div class="fld"><span class="lab">Better when</span>${segHTML("better", [["up","Higher"],["down","Lower"],["","Neither"]], f.better==null?"":f.better==="range"?"":f.better)}</div>`;
     h += `<label class="switch"><span>Show on Today</span><input type="checkbox" id="k-quick" ${f.quick?"checked":""}></label>`;
-    if(t) h += `<button class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete tracker"}</button><p class="hint">Deleting hides it everywhere. Values you logged stay in your backup.</p>`;
+    if(t) h += `<button class="btn danger" data-delete="1">${confirmDel?"Tap again to delete":"Delete tracker"}</button><p class="hint">Deleting hides it. Your logs stay in backups.</p>`;
     return h + `</div>`;
   };
   const grab = ()=>{ f.name = val("k-name").trim(); if(sheet.querySelector("#k-unit")) f.unit = val("k-unit").trim(); if(sheet.querySelector("#k-target")) f.target = num(val("k-target")); if(sheet.querySelector("#k-min")){ f.min = num(val("k-min")); f.max = num(val("k-max")); } if(sheet.querySelector("#k-step")) f.step = num(val("k-step"))||0.5; if(sheet.querySelector("#k-lo")){ f.lo = val("k-lo"); f.hi = val("k-hi"); } f.quick = sheet.querySelector("#k-quick").checked;
@@ -826,7 +826,7 @@ function importBackup(file){
   const r = new FileReader();
   r.onload = ()=>{ let d; try{ d = JSON.parse(r.result); }catch(e){ toast("That file isn't a Healthbook backup"); return; }
     if(!d || !Array.isArray(d.tasks) || !d.hist){ toast("That file isn't a Healthbook backup"); return; }
-    openSheet(`<span class="grab"></span><h3 class="big3">Restore backup?</h3><p class="sub">This replaces everything on this phone with the backup from ${esc(d.exported?new Date(d.exported).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"the file")}.</p><div class="btns"><button class="btn sec" data-s="cancel">Cancel</button><button class="btn" data-s="ok">Restore</button></div>`, b=>{
+    openSheet(`<span class="grab"></span><h3 class="big3">Restore backup?</h3><p class="sub">Replaces everything on this phone with the backup from ${esc(d.exported?new Date(d.exported).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"the file")}.</p><div class="btns"><button class="btn sec" data-s="cancel">Cancel</button><button class="btn" data-s="ok">Restore</button></div>`, b=>{
       if(b.dataset.s==="ok"){ delete d.app; delete d.exported; S = migrate(d); if(window.applySchedule) applySchedule(); applyTheme(); save(); scheduleReminders(); closeSheet(); go("today"); toast("Backup restored"); } else closeSheet(); }); };
   r.readAsText(file);
 }
@@ -1026,18 +1026,18 @@ function rulesText(){
 async function shareRules(){
   const txt = rulesText();
   if(SHARE){ try{ await SHARE.share({title:"My Healthbook rules", text:txt, dialogTitle:"Share your rules"}); return; }catch(e){ if(String(e&&e.message||e).toLowerCase().includes("cancel")) return; } }
-  openSheet(`<span class="grab"></span><h3 class="big3">Your rules</h3><p class="sub">Anyone with Healthbook can paste this into Tasks → Import rules.</p><pre class="fmt" style="width:100%">${esc(txt)}</pre><div class="btns"><button class="btn sec" data-s="x">Close</button><button class="btn" data-s="copy">Copy</button></div>`, async b=>{ if(b.dataset.s==="copy"){ try{ await navigator.clipboard.writeText(txt); toast("Copied"); }catch(e){ toast("Select the text and copy it"); } } else closeSheet(); });
+  openSheet(`<span class="grab"></span><h3 class="big3">Your rules</h3><p class="sub">Friends can paste this into Tasks → Import rules.</p><pre class="fmt" style="width:100%">${esc(txt)}</pre><div class="btns"><button class="btn sec" data-s="x">Close</button><button class="btn" data-s="copy">Copy</button></div>`, async b=>{ if(b.dataset.s==="copy"){ try{ await navigator.clipboard.writeText(txt); toast("Copied"); }catch(e){ toast("Select the text and copy it"); } } else closeSheet(); });
 }
 function openImport(after){
   let mode = "add", parsed = null;
   const html = `<span class="grab"></span><div class="shead"><button data-s="cancel">Cancel</button><h3>Import rules</h3><button class="r" data-s="go" disabled>Import</button></div>
-    <p class="hint" style="width:100%">Paste rules or choose a .txt or .json file. Write your own, use a friend's shared rules, or ask any AI chatbot to turn your goals into this format using the guide below.</p>
+    <p class="hint" style="width:100%">Paste rules or pick a .txt or .json file. Any AI chatbot can write them using the guide below.</p>
     <textarea class="tin" id="rules-text" style="min-height:190px;width:100%;font:14px/1.45 ui-monospace,Menlo,monospace" placeholder="Dailies:\n- Drink a glass of water (morning, nourish)\nHabits:\n- Workout (move, hard, 3 a week)"></textarea>
     <div class="btns"><button class="btn sec" data-s="file">Choose file</button><button class="btn sec" data-s="starter">Use starter plan</button></div>
     <input type="file" id="rules-file" accept=".txt,.md,.json,text/plain,application/json" hidden>
     <div id="found" class="found" style="width:100%"></div>
     <div style="width:100%">${segHTML("mode", [["add","Add to my plan"],["replace","Replace my plan"]], mode)}</div>
-    <p class="hint" style="width:100%">Replace keeps your logs, XP and finished to-dos; it swaps out your dailies, habits, open to-dos and rewards.</p>
+    <p class="hint" style="width:100%">Replace swaps your tasks and rewards. Logs and XP stay.</p>
     <div class="fld" style="width:100%"><span class="lab">Format guide</span><pre class="fmt">${esc(FORMAT_GUIDE)}</pre><button class="btn sec" data-s="copyguide">Copy guide</button></div>`;
   openSheet(html, async b=>{ const d = b.dataset;
     if(d.pick){ pickIn(b); mode = d.v; return; }
@@ -1063,14 +1063,14 @@ function onboarding(start){
   const dots = n=>`<div class="steps-dots">${[1,2,3].map(i=>`<i class="${i<=n?"on":""}"></i>`).join("")}</div>`;
   const ic = (svg,c)=>`<span class="ci" style="--c:${c}">${svg}</span>`;
   const draw = ()=>{
-    if(step===1) return `<span class="grab"></span>${dots(1)}<h3 class="big3">Welcome to Healthbook</h3><p class="sub">Build habits, log how you feel, and see your patterns. Everything stays on this phone.</p>
+    if(step===1) return `<span class="grab"></span>${dots(1)}<h3 class="big3">Welcome to Healthbook</h3><p class="sub">Build habits, log how you feel, see patterns. Stays on this phone.</p>
       <div class="form"><div class="fld"><label for="ob-name">Your name</label><input class="tin" id="ob-name" value="${esc(S.profile.name||"")}" placeholder="What should we call you?" maxlength="40"></div>
       <div class="fld"><span class="lab">Appearance</span>${themePicker()}</div></div><button class="btn" data-s="next">Continue</button>`;
     if(step===2) return `<span class="grab"></span>${dots(2)}<h3 class="big3">How do you want to start?</h3><p class="sub">You can change everything later in Tasks.</p>
       <button class="choice" data-s="starter">${ic(ICON.done,"var(--green)")}<b>Healthy basics</b><span class="d">17 dailies, 4 habits, 3 to-dos and rewards to get you going.</span></button>
       <button class="choice" data-s="import">${ic(`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>`,"var(--blue)")}<b>Import my own rules</b><span class="d">Paste or load a rules file, yours or a friend's.</span></button>
       <button class="choice" data-s="empty">${ic(ICON.plus.replace('stroke="currentColor"','stroke="#fff"'),"var(--yellow)")}<b>Start empty</b><span class="d">Add your own dailies and habits one by one.</span></button>`;
-    return `<span class="grab"></span>${dots(3)}<h3 class="big3">Reminders</h3><p class="sub">Get a nudge at the times you set on dailies, plus an evening reminder to log your day.</p><button class="btn" data-s="rem">Turn on reminders</button><button class="btn sec" data-s="done">Not now</button>`;
+    return `<span class="grab"></span>${dots(3)}<h3 class="big3">Reminders</h3><p class="sub">Nudges at your daily times, plus an evening log reminder.</p><button class="btn" data-s="rem">Turn on reminders</button><button class="btn sec" data-s="done">Not now</button>`;
   };
   const finish = ()=>{ S.onboarded = true; save(); closeSheet(); render(); };
   openSheet(draw(), b=>{ const d = b.dataset;
@@ -1084,7 +1084,7 @@ function onboarding(start){
   }, null, true);
 }
 function onboardingReminders(){
-  openSheet(`<span class="grab"></span><h3 class="big3">Reminders</h3><p class="sub">Get a nudge at the times you set on dailies, plus an evening reminder to log your day.</p><button class="btn" data-s="rem">Turn on reminders</button><button class="btn sec" data-s="done">Not now</button>`, b=>{ if(b.dataset.s==="rem"){ S.settings.reminders = true; save(); scheduleReminders(true); } closeSheet(); render(); }, null, true);
+  openSheet(`<span class="grab"></span><h3 class="big3">Reminders</h3><p class="sub">Nudges at your daily times, plus an evening log reminder.</p><button class="btn" data-s="rem">Turn on reminders</button><button class="btn sec" data-s="done">Not now</button>`, b=>{ if(b.dataset.s==="rem"){ S.settings.reminders = true; save(); scheduleReminders(true); } closeSheet(); render(); }, null, true);
 }
 
 /* ================= events ================= */
@@ -1128,7 +1128,7 @@ V.addEventListener("click", e=>{
   if(d.buy){ buyReward(d.buy); return; }
   if(d.backup==="export"){ exportBackup(); return; }
   if(d.backup==="import"){ $("#importfile").click(); return; }
-  if(d.reset){ openSheet(`<span class="grab"></span><h3 class="big3">Reset everything?</h3><p class="sub">Deletes all tasks, logs, XP and rewards on this phone and starts setup again. Export a backup first if you might want it back.${typeof cloudUser!=="undefined" && cloudUser ? " You'll be signed out; the copy in your account isn't touched." : ""}</p><div class="btns"><button class="btn sec" data-s="cancel">Cancel</button><button class="btn danger" data-s="ok">Reset</button></div>`, async bb=>{ if(bb.dataset.s==="ok"){ if(typeof cloudUser!=="undefined" && cloudUser) await cloudSignOut(); const th = S.settings.theme; S = seed(); S.settings.theme = th; save(); scheduleReminders(); closeSheet(); go("today"); setTimeout(window.signupFlow || onboarding, 250); } else closeSheet(); }); return; }
+  if(d.reset){ openSheet(`<span class="grab"></span><h3 class="big3">Reset everything?</h3><p class="sub">Deletes everything on this phone and restarts setup. Export a backup first.${typeof cloudUser!=="undefined" && cloudUser ? " You'll be signed out; the copy in your account isn't touched." : ""}</p><div class="btns"><button class="btn sec" data-s="cancel">Cancel</button><button class="btn danger" data-s="ok">Reset</button></div>`, async bb=>{ if(bb.dataset.s==="ok"){ if(typeof cloudUser!=="undefined" && cloudUser) await cloudSignOut(); const th = S.settings.theme; S = seed(); S.settings.theme = th; save(); scheduleReminders(); closeSheet(); go("today"); setTimeout(window.signupFlow || onboarding, 250); } else closeSheet(); }); return; }
 });
 document.querySelectorAll(".tb").forEach(t=>t.addEventListener("click", ()=>{ if(t.dataset.view==="log") logDay = TODAY(); closeSheet(); go(t.dataset.view); }));
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && sheet && !sheet.locked) closeSheet(); });

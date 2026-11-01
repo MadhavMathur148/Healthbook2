@@ -11,7 +11,7 @@ async function healthConnect(){
   const av = await healthAvailable();
   if(!av.available){
     if(!HC){ toast("Health Connect works in the Android app"); return false; }
-    openSheet(`<span class="grab"></span><h3 class="big3">Get Health Connect</h3><p class="sub">Health Connect is Android's health hub. It's built into Android 14 and later; on older phones, install it from the Play Store, then come back and tap Connect again.</p><button class="btn" data-s="store">Open Play Store</button><button class="btn sec" data-s="x">Not now</button>`, b=>{ if(b.dataset.s==="store"){ try{ window.open(HC_STORE, "_blank"); }catch(e){ location.href = HC_STORE; } } closeSheet(); });
+    openSheet(`<span class="grab"></span><h3 class="big3">Get Health Connect</h3><p class="sub">It's built into Android 14 and later. On older phones, get it from the Play Store, then tap Connect again.</p><button class="btn" data-s="store">Open Play Store</button><button class="btn sec" data-s="x">Not now</button>`, b=>{ if(b.dataset.s==="store"){ try{ window.open(HC_STORE, "_blank"); }catch(e){ location.href = HC_STORE; } } closeSheet(); });
     return false;
   }
   try{
@@ -70,9 +70,9 @@ function meDevicesHTML(){
   const h = hcState(), on = h.connected;
   const types = HC_MAP.filter(m=>(h.granted||[]).includes(m[0])).map(m=>(trk(m[1])||{name:m[1]}).name);
   return `<div class="group"><div class="cap">Connected apps</div><div class="card form">
-    <div style="display:flex;gap:12px;align-items:center"><span class="ci" style="--c:var(--green);width:40px;height:40px;border-radius:12px;display:grid;place-content:center;background:var(--green);box-shadow:0 0 calc(14px*var(--ga)) color-mix(in srgb,var(--green) 55%,transparent);flex:none">${ICON.care}</span><div style="min-width:0"><b>Health Connect</b><div class="hint">${on?`Connected · synced ${typeof ago==="function"?ago(h.last):""}${types.length?` · ${esc(types.join(", "))}`:""}`:"Steps, sleep, heart rate, HRV and weight from Samsung Health, Fitbit, Garmin, Google Fit and most rings and watches."}</div></div></div>
+    <div style="display:flex;gap:12px;align-items:center"><span class="ci" style="--c:var(--green);width:40px;height:40px;border-radius:12px;display:grid;place-content:center;background:var(--green);box-shadow:0 0 calc(14px*var(--ga)) color-mix(in srgb,var(--green) 55%,transparent);flex:none">${ICON.care}</span><div style="min-width:0"><b>Health Connect</b><div class="hint">${on?`Connected · synced ${typeof ago==="function"?ago(h.last):""}${types.length?` · ${esc(types.join(", "))}`:""}`:"Steps, sleep, heart rate, HRV and weight from most rings and watches."}</div></div></div>
     ${HC ? (on ? `<div class="btns"><button class="btn" data-hc="sync">Sync now</button><button class="btn sec" data-hc="manage">Manage</button></div>` : `<button class="btn" data-hc="connect">Connect</button>`) : `<p class="hint">Available in the Android app.</p>`}
-    <p class="hint">Read-only. Values you type in yourself are never overwritten. If your ring or watch app isn't listed in Health Connect, turn on its Health Connect sync in that app first.</p>
+    <p class="hint">Read-only. Your own entries are never overwritten. Ring or watch missing? Turn on Health Connect in its app.</p>
   </div></div>`;
 }
 V.addEventListener("click", async e=>{

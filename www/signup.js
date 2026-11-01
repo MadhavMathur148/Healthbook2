@@ -53,7 +53,7 @@ function signupFlow(){
   const nav = (next, label)=>`<div class="btns"><button class="btn sec" data-s="back" style="flex:0 0 auto;width:auto;padding:13px 18px">Back</button><button class="btn" data-s="${next}">${label||"Continue"}</button></div>`;
   const ft = cm=>{ if(!cm) return ["",""]; const inch = cm/2.54; return [Math.floor(inch/12), Math.round(inch%12)]; };
   const draw = ()=>{
-    if(step==="welcome") return `<span class="grab"></span><img src="icon.png" alt="" class="hero-ic"><h3 class="big3">Healthbook</h3><p class="sub">Build habits, log how you feel, and see your patterns. Setup takes about a minute.</p>
+    if(step==="welcome") return `<span class="grab"></span><img src="icon.png" alt="" class="hero-ic"><h3 class="big3">Healthbook</h3><p class="sub">Build habits, log how you feel, see patterns. Takes a minute.</p>
       ${hasCloud?`<button class="btn" data-s="create">Create an account</button><button class="btn sec" data-s="signin">I already have an account</button><button class="linkbtn" data-s="local">Continue without an account</button>`:`<button class="btn" data-s="local">Get started</button>`}`;
     if(step==="account") return `<span class="grab"></span><h3 class="big3">${acctMode==="signin"?"Welcome back":"Create your account"}</h3><p class="sub">${acctMode==="signin"?"Sign in and your plan and logs come with you.":"Your data is backed up and private to your account."}</p>
       <div class="form"><div class="fld"><label for="su-email">Email</label><input class="tin" id="su-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" value="${esc(S.pendingEmail||"")}"></div>
@@ -70,12 +70,12 @@ function signupFlow(){
       <div class="fld"><label for="su-w">Weight</label><label class="inp"><input id="su-w" type="number" inputmode="decimal" value="${a.weightKg?(imp?Math.round(a.weightKg/0.453592):a.weightKg):""}"><span>${imp?"lb":"kg"}</span></label></div></div>${nav("goals")}`; }
     if(step==="goals") return `<span class="grab"></span>${bar()}<h3 class="big3">What matters most?</h3><p class="sub">Pick up to three. Your plan is built around them.</p>
       <div class="goalgrid">${GOALS.map(([id,n,c])=>`<button class="gchip" data-goal="${id}" aria-pressed="${a.goals.includes(id)}" style="--c:${CATS[c].c}"><i>${goalIcon(c)}</i>${n}</button>`).join("")}</div>${nav("day")}`;
-    if(step==="day") return `<span class="grab"></span>${bar()}<h3 class="big3">Your usual day</h3><p class="sub">Healthbook groups your habits around these times and sets reminders to match.</p>
+    if(step==="day") return `<span class="grab"></span>${bar()}<h3 class="big3">Your usual day</h3><p class="sub">Your habits and reminders fit around these.</p>
       <div class="form"><div class="two"><div class="fld"><label for="su-wake">Wake up</label><input class="tin" id="su-wake" type="time" value="${a.wake}"></div><div class="fld"><label for="su-bed">Go to bed</label><input class="tin" id="su-bed" type="time" value="${a.bed}"></div></div></div>${nav("devices")}`;
     if(step==="devices"){ const other = a.devices.some(x=>x!=="phone"), hc = typeof hcState==="function" ? hcState() : {};
       return `<span class="grab"></span>${bar()}<h3 class="big3">What do you track with?</h3><p class="sub">Pick all that apply.</p>
       <div class="goalgrid">${DEVICES.map(([id,n])=>`<button class="gchip" data-dev="${id}" aria-pressed="${a.devices.includes(id)}" style="--c:var(--blue)">${n}</button>`).join("")}</div>
-      ${other?`<div class="card form" style="width:100%"><b>Connect Health Connect</b><p class="hint">Pulls steps, sleep, heart rate, HRV and weight from Samsung Health, Fitbit, Garmin, Google Fit and most rings and watches. Read-only.</p>${typeof HC!=="undefined" && HC ? (hc.connected?`<p class="hint ok">Connected</p>`:`<button class="btn" data-s="hc">Connect</button>`) : `<p class="hint">You can connect from Me → Connected apps in the Android app.</p>`}</div>`:""}
+      ${other?`<div class="card form" style="width:100%"><b>Connect Health Connect</b><p class="hint">Steps, sleep, heart rate, HRV and weight from most rings and watches. Read-only.</p>${typeof HC!=="undefined" && HC ? (hc.connected?`<p class="hint ok">Connected</p>`:`<button class="btn" data-s="hc">Connect</button>`) : `<p class="hint">You can connect from Me → Connected apps in the Android app.</p>`}</div>`:""}
       ${nav("finish")}`; }
     const plan = parseRules(planFromAnswers(a)), c = packCounts(plan);
     return `<span class="grab"></span>${bar()}<h3 class="big3">Your plan is ready</h3><p class="sub">${c.daily} dailies, ${c.habit} habits and ${c.todo} to-dos built from your answers. Everything can be edited later.</p>

@@ -102,7 +102,7 @@ function reportsHTML(){
   h += list.length ? `<ul class="list">${list.map(m=>{ const r = S.reports[m];
       const bits = [r.good.length?`${r.good.length} going well`:null, r.doctor.length?`${r.doctor.length} to discuss`:null, r.links.length?`${r.links.length} connection${r.links.length===1?"":"s"}`:null].filter(Boolean);
       return `<li class="row plain tap" data-report="${m}"><div style="min-width:0"><span class="rt">${esc(r.label)}</span><div class="rs">${bits.length?esc(bits.join(" · ")):"Summary ready"}</div></div><span class="chev">›</span></li>`; }).join("")}</ul>`
-    : `<div class="card"><p class="hint" style="font-size:15px">Your first summary arrives on the 1st of ${MONTHS[Number(nextMonth(monthOf(TODAY())).slice(5,7))-1]}. It looks for what changed against your own normal, and what your habits and health numbers did together.</p></div>`;
+    : `<div class="card"><p class="hint" style="font-size:15px">Your first summary arrives on the 1st of ${MONTHS[Number(nextMonth(monthOf(TODAY())).slice(5,7))-1]}.</p></div>`;
   h += `<button class="btn sec" data-report="now">Summary of this month so far</button></div>`;
   return h;
 }
@@ -132,14 +132,14 @@ function openReport(m){
     h += `<div class="group" style="width:100%"><div class="cap">${R.keystone?"Other connections":"What moved together"}</div><ul class="list">${R.links.map(a=>`<li class="row plain" style="--c:var(--${a.good===true?"green":a.good===false?"red":"blue"});grid-template-columns:10px minmax(0,1fr)"><span class="dot"></span><span style="font-size:15px;line-height:1.45">${esc(linkSentence(a))}<br><small class="hint">${a.nYes} vs ${a.nNo} days${a.lag===1?" · measured the next day":""}</small></span></li>`).join("")}</ul></div>`;
   }
   if((R.keystone || R.links.length) && R.linkDays)
-    h += `<p class="hint" style="padding:0 2px">Connections are drawn from your last ${R.linkDays} logged days, not just this month — a month alone is too short to tell a pattern from a coincidence.${R.pairs.length?" "+R.pairs.map(p=>`${esc(p.a)} and ${esc(p.b)} moved ${p.dir} most days.`).join(" "):""}</p>`;
+    h += `<div class="group" style="width:100%"><div class="cap">How these were found</div>${bulletList([`Drawn from your last ${R.linkDays} logged days, not just this month.`, "A month alone is too short to tell a pattern from a coincidence."].concat(R.pairs.map(p=>`${p.a} and ${p.b} moved ${p.dir} most days.`)),"grey")}</div>`;
   if(R.doctor.length) h += `<div class="group" style="width:100%"><div class="cap">To mention to a doctor</div>${bulletList(R.doctor,"red")}</div>`;
   if(R.watch.length) h += `<div class="group" style="width:100%"><div class="cap">Worth your attention</div>${bulletList(R.watch,"yellow")}</div>`;
   if(R.good.length) h += `<div class="group" style="width:100%"><div class="cap">Going well</div>${bulletList(R.good,"green")}</div>`;
   if(R.pattern.length) h += `<div class="group" style="width:100%"><div class="cap">Patterns</div>${bulletList(R.pattern,"blue")}</div>`;
 
   if(R.metrics.length){
-    h += `<div class="group" style="width:100%"><div class="cap">Measurements</div><div class="card"><table class="stats"><thead><tr><th>Measure</th><th>Avg</th><th>Range</th><th>Steady</th><th>vs you</th></tr></thead><tbody>${R.metrics.map(x=>`<tr><td><span class="dot" style="--c:${COLORS[x.color]};display:inline-block;margin-right:8px;vertical-align:0"></span>${esc(x.name)}</td><td>${fmtN(x.avg)}</td><td>${fmtN(x.min)}–${fmtN(x.max)}</td><td>${x.cv==null?"–":x.cv<15?"steady":x.cv<30?"varies":"swings"}</td><td>${x.base==null?"–":(x.avg-x.base.avg>0?"+":"")+Math.round((x.avg-x.base.avg)*10)/10}</td></tr>`).join("")}</tbody></table><p class="hint" style="margin:10px 2px 0">"vs you" compares this month against your own earlier average, not a population norm.</p></div></div>`;
+    h += `<div class="group" style="width:100%"><div class="cap">Measurements</div><div class="card"><table class="stats"><thead><tr><th>Measure</th><th>Avg</th><th>Range</th><th>Steady</th><th>vs you</th></tr></thead><tbody>${R.metrics.map(x=>`<tr><td><span class="dot" style="--c:${COLORS[x.color]};display:inline-block;margin-right:8px;vertical-align:0"></span>${esc(x.name)}</td><td>${fmtN(x.avg)}</td><td>${fmtN(x.min)}–${fmtN(x.max)}</td><td>${x.cv==null?"–":x.cv<15?"steady":x.cv<30?"varies":"swings"}</td><td>${x.base==null?"–":(x.avg-x.base.avg>0?"+":"")+Math.round((x.avg-x.base.avg)*10)/10}</td></tr>`).join("")}</tbody></table><p class="hint" style="margin:10px 2px 0">• "vs you" = this month against your own earlier average.<br>• Not compared with other people.</p></div></div>`;
     const ks = monthDays(R.month).slice(0, R.days);
     for(const x of R.metrics){
       if(x.n<2) continue;
@@ -161,7 +161,7 @@ function openReport(m){
   }
   if(rt.habits.length) h += `<div class="card" style="margin-top:12px"><table class="stats"><thead><tr><th>Habit</th><th>Done</th><th>Slips</th></tr></thead><tbody>${rt.habits.map(x=>`<tr><td>${esc(x.title)}</td><td>${x.kind==="bad"?"–":x.done}</td><td>${x.kind==="good"?"–":x.slips}</td></tr>`).join("")}</tbody></table></div>`;
   h += `</div>`;
-  if(R.notes.length) h += `<p class="hint" style="padding:0 2px">${R.notes.map(esc).join(" ")}</p>`;
+  if(R.notes.length) h += `<div class="group" style="width:100%"><div class="cap">Notes</div>${bulletList(R.notes,"grey")}</div>`;
   h += `<p class="hint" style="text-align:center">Calculated on your phone from your own logs and device data. Not a diagnosis.</p>`;
   openSheet(h, b=>{ if(b.dataset.s==="x") closeSheet(); else if(b.dataset.s==="pdf") sharePDF(R); });
 }

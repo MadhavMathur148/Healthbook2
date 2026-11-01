@@ -41,17 +41,18 @@ function setEasy(k, on){
   if(k===TODAY()) queueReminders();
 }
 
+const shortName = t=>/^[A-Z]{2,}$/.test(t.name) ? t.name : t.id==="rhr" ? "Resting HR" : t.name;
 function easyCardHTML(k){
   const paused = dailies().filter(t=>t.days.includes(dowOf(k)) && (t.diff||1)>1).length;
   if(isEasy(k)){
     const kept = dueToday(k).length;
-    return `<div class="card lab" style="--c:var(--blue)"><div class="lab-h"><span class="lab-tag">Easy day</span><button class="linkbtn" data-easy="off">Undo</button></div><p class="lab-p">${kept ? `Just your ${kept} Easy dail${kept===1?"y":"ies"} today.` : "Nothing's due today."}${paused ? ` ${paused} harder one${paused===1?" is":"s are"} paused — streaks wait, they don't break.` : ""}</p></div>`;
+    return `<div class="card lab" style="--c:var(--blue)"><div class="lab-h"><span class="lab-tag">Easy day</span><button class="linkbtn" data-easy="off">Undo</button></div><p class="lab-p">${kept ? `${kept} easy task${kept===1?"":"s"} today.` : "Nothing due today."}</p>${paused?`<p class="hint">Harder ones are paused. Streaks are safe.</p>`:""}</div>`;
   }
   if(S.hist[k] && S.hist[k].easyNo) return "";
   const b = bodyCheck(k);
   if(!b.low || !paused) return "";
-  const bits = b.signals.map(x=>`${/^[A-Z]{2,}$/.test(x.t.name)?x.t.name:x.t.name.toLowerCase()} ${fmtQ(x.t,x.v)} (you usually ${fmtQ(x.t,x.usual)})`);
-  return `<div class="card lab" style="--c:var(--yellow)"><div class="lab-h"><span class="lab-tag">Running low</span></div><p class="lab-p">Your body's below your usual this morning: ${esc(bits.join(", "))}. Want to make today an easy day?</p><p class="hint">Only your Easy dailies count. The ${paused} harder one${paused===1?"":"s"} pause without breaking streaks.</p><div class="btns" style="margin-top:10px"><button class="btn" data-easy="on">Easy day</button><button class="btn sec" data-easy="skip">I'm fine</button></div></div>`;
+  const chips = b.signals.map(x=>`<span class="bstat"><b>${esc(shortName(x.t))} ${fmtQ(x.t,x.v)}</b><small>${x.t.id==="rhr"?"↑":"↓"} usually ${fmtQ(x.t,x.usual)}</small></span>`).join("");
+  return `<div class="card lab" style="--c:var(--yellow)"><div class="lab-h"><span class="lab-tag">Rough night</span></div><p class="lab-p">Take it easy today?</p><div class="bstats">${chips}</div><p class="hint">Only Easy tasks count. Streaks stay safe.</p><div class="btns" style="margin-top:10px"><button class="btn" data-easy="on">Easy day</button><button class="btn sec" data-easy="skip">I'm fine</button></div></div>`;
 }
 
 /* ================= experiments ================= */
@@ -112,13 +113,15 @@ function expResult(e){
   }
   const clearGood = rows.filter(r=>r.call==="clear" && r.good===true).length, clearBad = rows.filter(r=>r.call==="clear" && r.good===false).length;
   const tested = rows.filter(r=>r.call!=="few").length;
+  const names = list=>{ const n = list.map(r=>shortName(r.t).toLowerCase()); return n.length>1 ? n.slice(0,-1).join(", ")+" and "+n[n.length-1] : n[0]; };
+  const better = rows.filter(r=>r.call==="clear" && r.good===true), worse = rows.filter(r=>r.call==="clear" && r.good===false);
   let line;
-  if(!tested) line = "Not enough readings to compare. Log the numbers you're watching on most days and try again.";
-  else if(clearGood && !clearBad) line = `This lined up with a clear change for the better in ${clearGood===1?"one of the numbers":clearGood+" of the numbers"} you watched.`;
-  else if(clearBad && !clearGood) line = `This lined up with ${clearBad===1?"a clear change":"clear changes"} for the worse. Worth a second look before you keep it.`;
-  else if(clearGood && clearBad) line = "Mixed: some numbers improved clearly and some got worse.";
-  else if(rows.some(r=>r.call==="slight")) line = "Some movement, but not enough to call it. A longer run would tell you more.";
-  else line = "No real difference in the numbers you watched. If it felt good, that still counts.";
+  if(!tested) line = "Not enough data yet. Log these numbers most days.";
+  else if(better.length && !worse.length) line = `It helped your ${names(better)}.`;
+  else if(worse.length && !better.length) line = `Your ${names(worse)} got worse.`;
+  else if(better.length && worse.length) line = `Mixed: better ${names(better)}, worse ${names(worse)}.`;
+  else if(rows.some(r=>r.call==="slight")) line = "Small changes. Too early to tell.";
+  else line = "No real change.";
   return {rows, line, adherence: expAdherence(e, W.during), during:W.during.length};
 }
 
@@ -137,37 +140,36 @@ function easyFootHTML(k){
   if(isEasy(k)) return "";
   const paused = dailies().filter(t=>t.days.includes(dowOf(k)) && (t.diff||1)>1).length;
   if(!paused) return "";
-  return `<p class="foot" style="text-align:center"><button class="linkbtn" data-easy="manual">Rough day? Make it an easy day</button></p>`;
+  return `<p class="foot" style="text-align:center"><button class="linkbtn" data-easy="manual">Rough day? Take it easy</button></p>`;
 }
 
 function callText(r){
-  if(r.call==="few") return `Not enough readings (${r.nBefore} before, ${r.nDuring} during)`;
-  if(r.call==="same") return "No real change";
-  const dir = r.diff>0 ? "higher" : "lower";
-  const how = r.call==="clear" ? "Clearly" : "Slightly";
-  return `${how} ${dir}${r.good===true?" · better":r.good===false?" · worse":""}`;
+  if(r.call==="few") return "Not enough data";
+  if(r.call==="same") return "No change";
+  if(r.call==="slight") return r.diff>0 ? "Up a little" : "Down a little";
+  return r.good===true ? "Better" : r.good===false ? "Worse" : r.diff>0 ? "Higher" : "Lower";
 }
 
 function expResultHTML(e){
   const R = expResult(e), done = !expRunning(e);
-  let h = `<p class="lab-p" style="margin-bottom:10px">${esc(R.line)}</p>`;
-  h += `<table class="stats"><thead><tr><th>Number</th><th>Before</th><th>${done?"During":"So far"}</th></tr></thead><tbody>`;
+  let h = `<p class="lab-p" style="font-size:19px;font-weight:700;margin-bottom:10px">${esc(R.line)}</p>`;
+  h += `<table class="stats"><thead><tr><th></th><th>Before</th><th>${done?"During":"So far"}</th></tr></thead><tbody>`;
   for(const r of R.rows){
     const col = r.call==="clear" ? (r.good===true?"var(--green)":r.good===false?"var(--red)":"var(--ink)") : "var(--muted)";
-    h += `<tr><td>${esc(r.t.name)}<div class="hint" style="color:${col}">${esc(callText(r))}</div></td><td>${fmtQ(r.t,r.before)}</td><td><b>${fmtQ(r.t,r.during)}</b></td></tr>`;
+    h += `<tr><td>${esc(shortName(r.t))}<div class="hint" style="color:${col};font-weight:600">${esc(callText(r))}</div></td><td>${fmtQ(r.t,r.before)}</td><td><b>${fmtQ(r.t,r.during)}</b></td></tr>`;
   }
   h += `</tbody></table>`;
-  if(R.adherence) h += `<p class="hint" style="margin-top:8px">You stuck to it on ${R.adherence.done} of ${R.adherence.of} days.</p>`;
-  h += `<p class="hint" style="margin-top:8px">The ${e.len} days before you started, against the ${done?e.len:R.during} day${R.during===1?"":"s"} during. This shows what changed alongside it, not what caused what — a busy fortnight can look like an effect too.</p>`;
+  if(R.adherence) h += `<p class="hint" style="margin-top:8px">Stuck to it ${R.adherence.done}/${R.adherence.of} days.</p>`;
+  h += `<p class="hint" style="margin-top:4px">${e.len} days before vs ${done?e.len:R.during} during. Shows what changed, not why.</p>`;
   return h;
 }
 
 function todayExpHTML(k){
   const fin = unreadExp();
-  if(fin) return `<div class="card lab tap" style="--c:var(--green)" data-exp="${fin.id}"><div class="lab-h"><span class="lab-tag">Experiment done</span><span class="chev">›</span></div><p class="lab-p">“${esc(fin.title)}” finished. See what changed.</p></div>`;
+  if(fin) return `<div class="card lab tap" style="--c:var(--green)" data-exp="${fin.id}"><div class="lab-h"><span class="lab-tag">Experiment done</span><span class="chev">›</span></div><p class="lab-p">${esc(fin.title)}</p><p class="hint">Tap to see how it went.</p></div>`;
   const e = activeExp(); if(!e) return "";
-  const n = expDay(e,k), a = expAdherence(e, expWindows(e).during);
-  return `<div class="card lab tap" style="--c:var(--blue)" data-exp="${e.id}"><div class="lab-h"><span class="lab-tag">Experiment · day ${Math.max(1,n)} of ${e.len}</span><span class="chev">›</span></div><p class="lab-p">${esc(e.title)}</p><div class="mini" style="margin-top:8px"><i style="width:${Math.min(1,n/e.len)*100}%;background:var(--blue)"></i></div>${a?`<p class="hint" style="margin-top:6px">Stuck to it ${a.done} of ${a.of} days so far.</p>`:""}</div>`;
+  const n = Math.max(1,expDay(e,k)), a = expAdherence(e, expWindows(e).during);
+  return `<div class="card lab tap" style="--c:var(--blue)" data-exp="${e.id}"><div class="lab-h"><span class="lab-tag">Experiment · day ${n}/${e.len}</span><span class="chev">›</span></div><p class="lab-p">${esc(e.title)}</p><div class="mini" style="margin-top:8px"><i style="width:${Math.min(1,n/e.len)*100}%;background:var(--blue)"></i></div>${a?`<p class="hint" style="margin-top:6px">Stuck to it ${a.done}/${a.of} days</p>`:""}</div>`;
 }
 
 function todayLabHTML(k){ return easyCardHTML(k) + todayExpHTML(k); }
@@ -175,7 +177,7 @@ function todayLabHTML(k){ return easyCardHTML(k) + todayExpHTML(k); }
 function experimentsHTML(){
   const list = (S.experiments||[]).slice().sort((a,b)=>a.start<b.start?1:-1);
   let h = `<div class="group"><div class="gh"><h2>Experiments</h2>${activeExp()?"":`<button class="meta" data-expnew="1">Start one</button>`}</div>`;
-  if(!list.length) return h + `<div class="card"><p class="hint" style="font-size:15px">Try one change for two weeks and see what it actually does to your sleep, mood or anything else you track. Healthbook compares it against the two weeks before.</p><button class="btn sec" data-expnew="1" style="margin-top:10px">Start an experiment</button></div></div>`;
+  if(!list.length) return h + `<div class="card"><p class="lab-p">Try one change. See if it helps.</p><p class="hint">Compares your numbers before and during.</p><button class="btn sec" data-expnew="1" style="margin-top:10px">Start an experiment</button></div></div>`;
   h += `<ul class="list">${list.map(e=>{
     const st = expRunning(e) ? `Day ${Math.max(1,expDay(e,TODAY()))} of ${e.len}` : e.stopped ? "Stopped early" : e.verdict==="keep" ? "Kept" : e.verdict==="drop" ? "Dropped" : "Result ready";
     return `<li class="row plain tap" data-exp="${e.id}"><div style="min-width:0"><span class="rt">${esc(e.title)}</span><div class="rs">${esc(st)} · from ${fmtD(e.start)}</div></div><span class="chev">›</span></li>`; }).join("")}</ul></div>`;
@@ -186,7 +188,7 @@ function openExperiment(id){
   const e = (S.experiments||[]).find(x=>x.id===id); if(!e) return;
   const running = expRunning(e), linked = e.link && S.tasks.find(x=>x.id===e.link);
   let h = `<span class="grab"></span><div class="shead"><button data-s="cancel">Close</button><h3>Experiment</h3><span></span></div>`;
-  h += `<div class="card" style="width:100%"><b style="font-size:19px">${esc(e.title)}</b><p class="hint" style="margin-top:4px">${fmtD(e.start)} – ${fmtD(expEnd(e))} · ${e.len} days${linked?` · tracked by “${esc(linked.title)}”`:""}</p></div>`;
+  h += `<div class="card" style="width:100%"><b style="font-size:19px">${esc(e.title)}</b><p class="hint" style="margin-top:4px">${fmtD(e.start)} – ${fmtD(expEnd(e))} · ${e.len} days${linked?` · linked to “${esc(linked.title)}”`:""}</p></div>`;
   h += `<div class="card" style="width:100%">${expResultHTML(e)}</div>`;
   if(running) h += `<button class="btn danger" data-s="stop">Stop early</button>`;
   else if(!e.stopped){
@@ -217,10 +219,10 @@ function newExperiment(){
     let h = shead("New experiment", "Cancel", "Start", !f.title || !f.watch.length) + `<div class="form">`;
     h += `<div class="fld big"><label for="x-title">What will you try?</label><input class="tin xl" id="x-title" value="${esc(f.title)}" placeholder="No phone after 11 pm" maxlength="80" autocomplete="off"></div>`;
     if(!f.title) h += `<div class="chips">${EXP_EX.map(x=>`<button type="button" class="chip" data-xex="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
-    h += `<div class="fld"><span class="lab">What should it change? Pick up to 4.</span><div class="multi">${choices.map(t=>`<button type="button" data-xw="${t.id}" aria-pressed="${f.watch.includes(t.id)}" style="--c:${COLORS[t.color]}">${esc(t.name)}</button>`).join("")}</div></div>`;
+    h += `<div class="fld"><span class="lab">What should it improve? Up to 4.</span><div class="multi">${choices.map(t=>`<button type="button" data-xw="${t.id}" aria-pressed="${f.watch.includes(t.id)}" style="--c:${COLORS[t.color]}">${esc(t.name)}</button>`).join("")}</div></div>`;
     h += `<div class="fld"><span class="lab">For how long?</span>${segHTML("xlen", EXP_LENS.map(n=>[n, n+" days"]), f.len)}</div>`;
-    if(links.length) h += `<div class="fld"><label for="x-link">Track whether you stuck to it</label><select class="tin" id="x-link"><option value="">I'll just remember</option>${links.map(t=>`<option value="${t.id}" ${f.link===t.id?"selected":""}>${esc(t.title)}</option>`).join("")}</select></div>`;
-    h += `<p class="hint">Starts today. At the end you'll see your numbers during the experiment next to the ${f.len} days before it. It works best if you've been logging those numbers already.</p></div>`;
+    if(links.length) h += `<div class="fld"><label for="x-link">Link a task (optional)</label><select class="tin" id="x-link"><option value="">None</option>${links.map(t=>`<option value="${t.id}" ${f.link===t.id?"selected":""}>${esc(t.title)}</option>`).join("")}</select></div>`;
+    h += `<p class="hint">Starts today. Compared with the ${f.len} days before.</p></div>`;
     return h;
   };
   const grab = ()=>{ f.title = val("x-title").trim(); if(sheet.querySelector("#x-link")) f.link = val("x-link"); };

@@ -154,7 +154,7 @@ function openAuth(mode, after){
         <p class="hint bad" id="au-err" hidden></p>
         <button class="btn" data-s="go">${mode==="signin"?"Sign in":"Create my account"}</button>
         <button class="btn ghost" data-s="switch">${mode==="signin"?"New here? Create an account":"Already have an account? Sign in"}</button>
-        <p class="hint" style="text-align:center">You can skip this and use Healthbook offline — everything works without an account.</p>
+        <p class="hint" style="text-align:center">Skip this to use it offline. Everything still works.</p>
       </div>
     </div>`;
   openSheet(draw(), async b=>{
